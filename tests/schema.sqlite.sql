@@ -139,3 +139,56 @@ CREATE TABLE cursor_share_votes (
     FOREIGN KEY (post_id) REFERENCES cursor_share_posts (id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+
+CREATE TABLE budget_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    mode TEXT NOT NULL DEFAULT 'solo',
+    onboarding_complete INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE budget_people (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES budget_profiles (id) ON DELETE CASCADE
+);
+
+CREATE TABLE budget_income_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (person_id) REFERENCES budget_people (id) ON DELETE CASCADE
+);
+
+CREATE TABLE budget_expense_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id INTEGER NOT NULL,
+    category TEXT NOT NULL,
+    label TEXT,
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (person_id) REFERENCES budget_people (id) ON DELETE CASCADE
+);
+
+CREATE TABLE budget_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL,
+    person_id INTEGER,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    balance_cents INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES budget_profiles (id) ON DELETE CASCADE,
+    FOREIGN KEY (person_id) REFERENCES budget_people (id) ON DELETE SET NULL
+);
