@@ -10,8 +10,9 @@ use App\Services\PermissionService;
 use App\Services\TestStatusReader;
 use App\Services\UserSettingsService;
 use Dotenv\Dotenv;
-use Tunnels\TunnelService;
+use BudgetTracker\BudgetService;
 use CursorShare\ShareService;
+use Tunnels\TunnelService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -88,6 +89,12 @@ function cursor_share(): ShareService
 {
     static $s = null;
     return $s ??= new ShareService(db());
+}
+
+function budget_tracker(): BudgetService
+{
+    static $bt = null;
+    return $bt ??= new BudgetService(db());
 }
 
 function tunnel_hub_url(): string
@@ -562,6 +569,20 @@ function event_summary(array $event): string
             . ($payload['filename'] ?? $event['subject_id'] ?? '?'),
         'cursor-share.post.voted' => 'Cursor Share: vote '
             . ($payload['direction'] ?? '?') . ' on #' . ($event['subject_id'] ?? '?'),
+        'budget-tracker.profile.updated' => 'Budget profile updated (' . ($payload['mode'] ?? '?') . ')',
+        'budget-tracker.onboarding.completed' => 'Budget onboarding completed',
+        'budget-tracker.income.saved' => 'Income saved: ' . ($payload['label'] ?? '?')
+            . ' — $' . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2),
+        'budget-tracker.income.deleted' => 'Income source removed #' . ($event['subject_id'] ?? '?'),
+        'budget-tracker.expense.saved' => 'Expense saved: ' . ($payload['category'] ?? '?')
+            . ' — $' . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2),
+        'budget-tracker.expense.deleted' => 'Expense removed #' . ($event['subject_id'] ?? '?'),
+        'budget-tracker.account.saved' => 'Account saved: ' . ($payload['name'] ?? '?')
+            . ' (' . ($payload['kind'] ?? '?') . ')',
+        'budget-tracker.account.deleted' => 'Account removed #' . ($event['subject_id'] ?? '?'),
+        'budget-tracker.purchase.calculated' => 'Purchase calc: $'
+            . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2)
+            . ' (' . ($payload['percent_of_annual'] ?? '?') . '% of annual income)',
         default => $event['subject_type']
             ? ($event['subject_type'] . ':' . ($event['subject_id'] ?? ''))
             : ($event['type'] ?? 'event'),
