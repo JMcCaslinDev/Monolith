@@ -94,6 +94,31 @@ final class BootstrapHelpersTest extends TestCase
         $this->assertStringContainsString('(encoders)', $summary);
     }
 
+    /** Stickies save events show category and section in the audit log. */
+    public function test_event_summary_stickies_saved(): void
+    {
+        $summary = event_summary([
+            'type' => 'stickies.note.saved',
+            'subject_id' => '42',
+            'payload' => ['category' => 'work', 'section' => 'ideas', 'created' => true],
+        ]);
+        $this->assertStringContainsString('Sticky created', $summary);
+        $this->assertStringContainsString('work', $summary);
+        $this->assertStringContainsString('ideas', $summary);
+    }
+
+    /** Stickies move events include board coordinates for audit trail. */
+    public function test_event_summary_stickies_moved(): void
+    {
+        $summary = event_summary([
+            'type' => 'stickies.note.moved',
+            'subject_id' => '7',
+            'payload' => ['pos_x' => 100, 'pos_y' => 50, 'section' => 'board'],
+        ]);
+        $this->assertStringContainsString('(100,50)', $summary);
+        $this->assertStringContainsString('board', $summary);
+    }
+
     /** Relative and timezone-formatted timestamps render correctly on status and audit pages. */
     public function test_time_ago_and_format_user_datetime(): void
     {

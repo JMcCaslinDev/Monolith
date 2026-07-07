@@ -4,6 +4,7 @@ import { registerBudgetTracker } from './budget-tracker.js';
 import { registerCursorShare } from './cursor-share.js';
 import { registerDevtools } from './devtools.js';
 import { registerTunnels } from './tunnels.js';
+import { registerStickies } from './stickies.js';
 
 const STORAGE_KEY = 'monolith-theme';
 
@@ -72,6 +73,7 @@ registerDevtools(Alpine);
 registerTunnels(Alpine);
 registerCursorShare(Alpine);
 registerBudgetTracker(Alpine);
+registerStickies(Alpine);
 
 Alpine.data('themeSettings', () => ({
   preference: getStoredTheme(),
