@@ -133,4 +133,16 @@ final class BootstrapHelpersTest extends TestCase
         $this->assertStringStartsWith('node tunnel-client.mjs --token ', tunnel_client_command('abc123', 3000));
         $this->assertStringContainsString('--hub', tunnel_client_command('abc123', 3000));
     }
+
+    /** Cursor Share publish events show title and category in the audit log. */
+    public function test_event_summary_cursor_share_created(): void
+    {
+        $summary = event_summary([
+            'type' => 'cursor-share.post.created',
+            'subject_id' => '42',
+            'payload' => json_encode(['title' => 'Ponytail', 'category' => 'rules']),
+        ]);
+        $this->assertStringContainsString('Ponytail', $summary);
+        $this->assertStringContainsString('rules', $summary);
+    }
 }
