@@ -97,6 +97,12 @@ function budget_tracker(): BudgetService
     return $bt ??= new BudgetService(db());
 }
 
+function stickies(): Stickies\StickyService
+{
+    static $s = null;
+    return $s ??= new Stickies\StickyService(db());
+}
+
 function tunnel_hub_url(): string
 {
     return rtrim($_ENV['TUNNEL_HUB_URL'] ?? 'http://localhost:8787', '/');
@@ -583,6 +589,11 @@ function event_summary(array $event): string
         'budget-tracker.purchase.calculated' => 'Purchase calc: $'
             . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2)
             . ' (' . ($payload['percent_of_annual'] ?? '?') . '% of annual income)',
+        'stickies.note.saved' => ($payload['created'] ?? false ? 'Sticky created' : 'Sticky updated')
+            . ' — ' . ($payload['category'] ?? '?') . ' / ' . ($payload['section'] ?? '?'),
+        'stickies.note.deleted' => 'Sticky deleted #' . ($event['subject_id'] ?? '?'),
+        'stickies.note.moved' => 'Sticky moved to (' . ($payload['pos_x'] ?? '?') . ',' . ($payload['pos_y'] ?? '?')
+            . ') in ' . ($payload['section'] ?? '?'),
         default => $event['subject_type']
             ? ($event['subject_type'] . ':' . ($event['subject_id'] ?? ''))
             : ($event['type'] ?? 'event'),

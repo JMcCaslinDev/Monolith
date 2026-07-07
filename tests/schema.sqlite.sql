@@ -192,3 +192,20 @@ CREATE TABLE budget_accounts (
     FOREIGN KEY (profile_id) REFERENCES budget_profiles (id) ON DELETE CASCADE,
     FOREIGN KEY (person_id) REFERENCES budget_people (id) ON DELETE SET NULL
 );
+
+CREATE TABLE stickies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'general',
+    section TEXT NOT NULL DEFAULT 'board',
+    color TEXT NOT NULL DEFAULT 'yellow',
+    pos_x INTEGER NOT NULL DEFAULT 0,
+    pos_y INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+CREATE INDEX stickies_user_idx ON stickies (user_id);
+CREATE INDEX stickies_user_category_idx ON stickies (user_id, category);
+CREATE INDEX stickies_user_section_idx ON stickies (user_id, section);
