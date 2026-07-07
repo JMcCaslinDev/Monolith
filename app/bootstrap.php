@@ -10,9 +10,9 @@ use App\Services\PermissionService;
 use App\Services\TestStatusReader;
 use App\Services\UserSettingsService;
 use Dotenv\Dotenv;
-use Tunnels\TunnelService;
 use BudgetTracker\BudgetService;
 use CursorShare\ShareService;
+use Tunnels\TunnelService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
