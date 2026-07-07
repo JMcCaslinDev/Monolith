@@ -21,7 +21,8 @@
       "App\\": "app/",
       "Devtools\\": "packages/devtools/src/",
       "Tunnels\\": "packages/tunnels/src/",
-      "CursorShare\\": "packages/cursor-share/src/"
+      "CursorShare\\": "packages/cursor-share/src/",
+      "Blog\\": "packages/blog/src/"
     }
   },
   "autoload-dev": {

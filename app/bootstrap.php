@@ -12,6 +12,7 @@ use App\Services\UserSettingsService;
 use Dotenv\Dotenv;
 use Tunnels\TunnelService;
 use CursorShare\ShareService;
+use Blog\BlogService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -88,6 +89,12 @@ function cursor_share(): ShareService
 {
     static $s = null;
     return $s ??= new ShareService(db());
+}
+
+function blog(): BlogService
+{
+    static $b = null;
+    return $b ??= new BlogService(db());
 }
 
 function tunnel_hub_url(): string
@@ -562,6 +569,21 @@ function event_summary(array $event): string
             . ($payload['filename'] ?? $event['subject_id'] ?? '?'),
         'cursor-share.post.voted' => 'Cursor Share: vote '
             . ($payload['direction'] ?? '?') . ' on #' . ($event['subject_id'] ?? '?'),
+        'blog.post.created' => 'Blog: draft created — '
+            . ($payload['title'] ?? $event['subject_id'] ?? '?'),
+        'blog.post.updated' => 'Blog: updated '
+            . ($payload['title'] ?? $event['subject_id'] ?? '?'),
+        'blog.post.published' => 'Blog: published '
+            . ($payload['title'] ?? $event['subject_id'] ?? '?'),
+        'blog.post.unpublished' => 'Blog: unpublished '
+            . ($payload['title'] ?? $event['subject_id'] ?? '?'),
+        'blog.post.deleted' => 'Blog: deleted '
+            . ($payload['title'] ?? $event['subject_id'] ?? '?'),
+        'blog.post.viewed' => 'Blog: viewed '
+            . ($payload['slug'] ?? $event['subject_id'] ?? '?'),
+        'blog.index.viewed' => 'Blog: public index viewed',
+        'blog.image.uploaded' => 'Blog: image uploaded '
+            . ($payload['path'] ?? $event['subject_id'] ?? '?'),
         default => $event['subject_type']
             ? ($event['subject_type'] . ':' . ($event['subject_id'] ?? ''))
             : ($event['type'] ?? 'event'),
