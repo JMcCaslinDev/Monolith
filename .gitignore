@@ -9,3 +9,4 @@ infra/node_modules/
 infra/Pulumi.*.yaml
 !infra/Pulumi.yaml
 !infra/Pulumi.prod.yaml.example
+composer.phar

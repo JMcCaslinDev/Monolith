@@ -20,7 +20,8 @@
     "psr-4": {
       "App\\": "app/",
       "Devtools\\": "packages/devtools/src/",
-      "Tunnels\\": "packages/tunnels/src/"
+      "Tunnels\\": "packages/tunnels/src/",
+      "CursorShare\\": "packages/cursor-share/src/"
     }
   },
   "autoload-dev": {

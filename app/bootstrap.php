@@ -11,6 +11,7 @@ use App\Services\TestStatusReader;
 use App\Services\UserSettingsService;
 use Dotenv\Dotenv;
 use Tunnels\TunnelService;
+use CursorShare\ShareService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -81,6 +82,12 @@ function tunnels(): TunnelService
 {
     static $t = null;
     return $t ??= new TunnelService(db());
+}
+
+function cursor_share(): ShareService
+{
+    static $s = null;
+    return $s ??= new ShareService(db());
 }
 
 function tunnel_hub_url(): string
@@ -545,6 +552,16 @@ function event_summary(array $event): string
         'tunnels.tunnel.created' => 'Tunnel created: ' . ($payload['slug'] ?? $event['subject_id'] ?? '?'),
         'tunnels.tunnel.stopped' => 'Tunnel stopped: ' . ($payload['slug'] ?? $event['subject_id'] ?? '?'),
         'tunnels.tunnel.connected' => 'Tunnel client connected: ' . ($payload['slug'] ?? '?'),
+        'cursor-share.post.created' => 'Cursor Share: published '
+            . ($payload['title'] ?? $event['subject_id'] ?? '?')
+            . ' [' . ($payload['category'] ?? '?') . ']',
+        'cursor-share.post.updated' => 'Cursor Share: updated '
+            . ($payload['title'] ?? $event['subject_id'] ?? '?'),
+        'cursor-share.post.viewed' => 'Cursor Share: viewed post #' . ($event['subject_id'] ?? '?'),
+        'cursor-share.post.downloaded' => 'Cursor Share: downloaded '
+            . ($payload['filename'] ?? $event['subject_id'] ?? '?'),
+        'cursor-share.post.voted' => 'Cursor Share: vote '
+            . ($payload['direction'] ?? '?') . ' on #' . ($event['subject_id'] ?? '?'),
         default => $event['subject_type']
             ? ($event['subject_type'] . ':' . ($event['subject_id'] ?? ''))
             : ($event['type'] ?? 'event'),

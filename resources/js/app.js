@@ -2,6 +2,7 @@ import '../css/app.css';
 import Alpine from 'alpinejs';
 import { registerDevtools } from './devtools.js';
 import { registerTunnels } from './tunnels.js';
+import { registerCursorShare } from './cursor-share.js';
 
 const STORAGE_KEY = 'monolith-theme';
 
@@ -68,6 +69,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 
 registerDevtools(Alpine);
 registerTunnels(Alpine);
+registerCursorShare(Alpine);
 
 Alpine.data('themeSettings', () => ({
   preference: getStoredTheme(),
