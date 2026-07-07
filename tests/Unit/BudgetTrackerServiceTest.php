@@ -28,6 +28,23 @@ final class BudgetTrackerServiceTest extends TestCase
         $this->assertCount(2, $state['people']);
     }
 
+    /** Re-saving profile names must not wipe income/expenses tied to existing people. */
+    public function test_setup_profile_preserves_income_when_names_unchanged(): void
+    {
+        $svc = new BudgetService($this->db);
+        $userId = 1;
+        $svc->setupProfile($userId, 'solo', ['Jonathan']);
+        $personId = (int) $svc->loadState($userId)['people'][0]['id'];
+
+        $svc->saveIncome($userId, $personId, 'Salary', 800000);
+        $svc->setupProfile($userId, 'solo', ['Jonathan']);
+
+        $state = $svc->loadState($userId);
+        $this->assertSame($personId, (int) $state['people'][0]['id']);
+        $this->assertCount(1, $state['income']);
+        $this->assertSame(800000, $state['summary']['total_income_cents']);
+    }
+
     /** Income and expenses persist per person and roll into summary totals. */
     public function test_income_and_expenses_update_live_summary(): void
     {
@@ -73,7 +90,7 @@ final class BudgetTrackerServiceTest extends TestCase
         $result = $svc->calculatePurchase($userId, 100000);
         $this->assertGreaterThan(0, $result['share']['percent_of_annual']);
         $this->assertNotEmpty($result['projections']);
-        $this->assertGreaterThan(100000, $result['projections'][4]['horizons'][2]['value_cents']);
+        $this->assertGreaterThan(100000, $result['projections'][2]['horizons'][2]['value_cents']);
     }
 
     /** Users cannot mutate another account's income rows. */

@@ -20,16 +20,18 @@ final class BudgetTrackerFinanceCalculatorTest extends TestCase
         $this->assertSame(750000, FinanceCalculator::sumCents($lines));
     }
 
-    /** Purchase share uses annualized income to express months, days, and hours of pay. */
+    /** Purchase share uses 40 hr/week model: monthly ÷ 160 hourly, 8-hr work days. */
     public function test_purchase_income_share_converts_to_time_units(): void
     {
-        // $5,000/mo → $60k/yr; $1,000 purchase ≈ 1.67% of annual, ~0.2 months
+        // $5,000/mo → $31.25/hr assumed; $1,000 purchase = 32 work hours
         $share = FinanceCalculator::purchaseIncomeShare(100000, 500000);
         $this->assertSame(6000000, $share['annual_income_cents']);
+        $this->assertSame(500000, $share['monthly_income_cents']);
+        $this->assertSame(3125, $share['assumed_hourly_cents']);
         $this->assertSame(1.67, $share['percent_of_annual']);
-        $this->assertSame(0.2, $share['months_of_income']);
-        $this->assertGreaterThan(0, $share['days_of_income']);
-        $this->assertGreaterThan($share['days_of_income'], $share['hours_of_income']);
+        $this->assertSame(20.0, $share['percent_of_monthly']);
+        $this->assertSame(4.0, $share['days_of_income']);
+        $this->assertSame(32.0, $share['hours_of_income']);
     }
 
     /** Zero income returns safe zeros so the UI never divides by null. */
@@ -37,7 +39,7 @@ final class BudgetTrackerFinanceCalculatorTest extends TestCase
     {
         $share = FinanceCalculator::purchaseIncomeShare(50000, 0);
         $this->assertSame(0.0, $share['percent_of_annual']);
-        $this->assertSame(0.0, $share['months_of_income']);
+        $this->assertSame(0.0, $share['percent_of_monthly']);
     }
 
     /** Compound growth matches standard FV formula for S&P-style rates. */
@@ -48,16 +50,14 @@ final class BudgetTrackerFinanceCalculatorTest extends TestCase
         $this->assertSame(215892, $fv);
     }
 
-    /** HYSA and equity bands both produce horizon rows for opportunity-cost display. */
+    /** HYSA and S&P bands produce 1y / 10y / 30y horizon rows. */
     public function test_investment_projections_cover_savings_and_equity_rates(): void
     {
-        $projections = FinanceCalculator::investmentProjections(100000, [5, 10]);
+        $projections = FinanceCalculator::investmentProjections(100000);
         $rates = array_column($projections, 'rate');
-        $this->assertContains(3.5, $rates);
-        $this->assertContains(8.0, $rates);
-        $this->assertContains(12.0, $rates);
-        $this->assertCount(2, $projections[0]['horizons']);
-        $this->assertGreaterThan(100000, $projections[3]['horizons'][1]['value_cents']);
+        $this->assertSame([3.5, 7.0, 10.0], $rates);
+        $this->assertSame([1, 10, 30], array_column($projections[0]['horizons'], 'years'));
+        $this->assertGreaterThan(100000, $projections[2]['horizons'][2]['value_cents']);
     }
 
     /** Live summary rolls up per-person totals and net worth from accounts. */

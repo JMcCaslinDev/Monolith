@@ -42,6 +42,16 @@ final class RegistryTest extends TestCase
         $this->assertContains('devtools.converters.use', $names);
     }
 
+    /** Stickies respects view vs open permission on the dashboard and navbar. */
+    public function test_stickies_visible_and_openable_projects(): void
+    {
+        $this->assertSame([], Registry::openableProjects(['projects.stickies.view']));
+        $visible = Registry::visibleProjects(['projects.stickies.view']);
+        $this->assertContains('stickies', array_column($visible, 'id'));
+        $openable = Registry::openableProjects(['projects.stickies.open']);
+        $this->assertSame('stickies', $openable[0]['id']);
+    }
+
     /** Dev Tools process route is registered for registry coverage checks. */
     public function test_package_mutations_include_devtools_process(): void
     {

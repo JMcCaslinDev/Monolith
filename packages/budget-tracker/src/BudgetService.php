@@ -91,13 +91,25 @@ final class BudgetService
         );
         $stmt->execute(['mode' => $mode, 'id' => $profileId]);
 
-        $this->db->prepare('DELETE FROM budget_people WHERE profile_id = :pid')->execute(['pid' => $profileId]);
-
+        $existing = $this->peopleForProfile($profileId);
+        $update = $this->db->prepare(
+            'UPDATE budget_people SET name = :name, sort_order = :ord WHERE id = :id',
+        );
         $insert = $this->db->prepare(
             'INSERT INTO budget_people (profile_id, name, sort_order) VALUES (:pid, :name, :ord)',
         );
+
         foreach ($names as $i => $name) {
+            if (isset($existing[$i])) {
+                $update->execute(['name' => $name, 'ord' => $i, 'id' => (int) $existing[$i]['id']]);
+                continue;
+            }
             $insert->execute(['pid' => $profileId, 'name' => $name, 'ord' => $i]);
+        }
+
+        for ($i = count($names); $i < count($existing); $i++) {
+            $this->db->prepare('DELETE FROM budget_people WHERE id = :id')
+                ->execute(['id' => (int) $existing[$i]['id']]);
         }
 
         $updated = $this->findProfile($userId);
@@ -350,7 +362,7 @@ final class BudgetService
        FROM budget_expense_sources e
        JOIN budget_people p ON p.id = e.person_id
        WHERE p.profile_id = :pid
-       ORDER BY p.sort_order ASC, e.id ASC',
+       ORDER BY p.sort_order ASC, e.category ASC, e.label ASC, e.id ASC',
         );
         $stmt->execute(['pid' => $profileId]);
 

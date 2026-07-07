@@ -10,7 +10,9 @@ export function registerBudgetTracker(Alpine) {
     saving: false,
     error: '',
     tab: 'overview',
+    section: 'budget',
     showWizard: false,
+    configureMode: false,
     wizardStep: 'mode',
     wizardPersonIdx: 0,
 
@@ -42,12 +44,15 @@ export function registerBudgetTracker(Alpine) {
 
   fmt,
 
-  async refresh() {
+  async refresh(options = {}) {
+    const silent = !!options.silent;
     if (!this.canManage) {
       this.loading = false;
       return;
     }
-    this.loading = true;
+    if (!silent) {
+      this.loading = true;
+    }
     this.error = '';
     try {
       const res = await fetch('/projects/budget-tracker/api/state');
@@ -57,7 +62,9 @@ export function registerBudgetTracker(Alpine) {
     } catch (e) {
       this.error = e.message || 'Load failed';
     } finally {
-      this.loading = false;
+      if (!silent) {
+        this.loading = false;
+      }
     }
   },
 
@@ -68,12 +75,28 @@ export function registerBudgetTracker(Alpine) {
     this.expenses = data.expenses || [];
     this.accounts = data.accounts || [];
     this.summary = data.summary || null;
-    this.showWizard = !this.profile.onboarding_complete;
-    if (this.showWizard) {
-      this.wizardStep = this.people.length ? this.nextWizardStepAfterLoad() : 'mode';
-      if (this.people[0]) this.form.names[0] = this.people[0].name;
-      if (this.people[1]) this.form.names[1] = this.people[1].name;
+    if (!this.configureMode) {
+      this.showWizard = !this.profile.onboarding_complete;
+      if (this.showWizard) {
+        this.wizardStep = this.people.length ? this.nextWizardStepAfterLoad() : 'mode';
+      }
+    }
+    if (this.people[0]) this.form.names[0] = this.people[0].name;
+    if (this.people[1]) this.form.names[1] = this.people[1].name;
+    if (this.showWizard || this.configureMode) {
       this.form.mode = this.profile.mode || 'solo';
+    }
+    this.syncFormPersonIds();
+  },
+
+  syncFormPersonIds() {
+    if (!this.people.length) return;
+    const valid = new Set(this.people.map((p) => Number(p.id)));
+    if (!valid.has(Number(this.form.income.person_id))) {
+      this.form.income.person_id = Number(this.people[0].id);
+    }
+    if (!valid.has(Number(this.form.expense.person_id))) {
+      this.form.expense.person_id = Number(this.people[0].id);
     }
   },
 
@@ -93,6 +116,52 @@ export function registerBudgetTracker(Alpine) {
       if (!hasExpense1) return 'expense-1';
     }
     return 'savings';
+  },
+
+  openConfigure() {
+    this.configureMode = true;
+    this.section = 'budget';
+    this.showWizard = true;
+    this.error = '';
+    this.refresh({ silent: true }).then(() => {
+      this.wizardStep = this.people.length ? 'name-0' : 'mode';
+      this.form.mode = this.profile.mode || 'solo';
+      if (this.people[0]) this.form.names[0] = this.people[0].name;
+      if (this.people[1]) this.form.names[1] = this.people[1].name;
+    });
+  },
+
+  exitConfigure() {
+    this.configureMode = false;
+    this.showWizard = false;
+    this.error = '';
+  },
+
+  openAfford() {
+    this.section = 'afford';
+    this.error = '';
+    this.purchaseResult = null;
+  },
+
+  openBudget() {
+    this.section = 'budget';
+    this.error = '';
+  },
+
+  wizardBack() {
+    const back = {
+      'name-0': 'mode',
+      'income-0': 'name-0',
+      'expense-0': 'income-0',
+      'income-1': 'expense-0',
+      'expense-1': 'income-1',
+      savings: this.profile.mode === 'partner' ? 'expense-1' : 'expense-0',
+      assets: 'savings',
+    };
+    if (back[this.wizardStep]) {
+      this.wizardStep = back[this.wizardStep];
+      this.error = '';
+    }
   },
 
   wizardTitle() {
@@ -128,6 +197,36 @@ export function registerBudgetTracker(Alpine) {
     return this.expenses.filter((e) => e.person_id === personId);
   },
 
+  expenseCategories() {
+    const cats = new Set();
+    for (const row of this.expenses) {
+      const cat = (row.category || '').trim();
+      if (cat !== '') cats.add(cat);
+    }
+    return [...cats].sort((a, b) => a.localeCompare(b));
+  },
+
+  expensesGroupedBySection(personId) {
+    const byCat = {};
+    for (const row of this.expensesForPerson(personId)) {
+      const cat = (row.category || '').trim() || 'Other';
+      (byCat[cat] ||= []).push(row);
+    }
+    return Object.keys(byCat)
+      .sort((a, b) => a.localeCompare(b))
+      .map((category) => ({
+        category,
+        items: byCat[category].sort((a, b) =>
+          this.expenseLineLabel(a).localeCompare(this.expenseLineLabel(b)),
+        ),
+      }));
+  },
+
+  expenseLineLabel(row) {
+    const detail = (row.label || '').trim();
+    return detail !== '' ? detail : row.category;
+  },
+
   savingsAccounts() {
     return this.accounts.filter((a) => a.kind === 'savings');
   },
@@ -161,6 +260,17 @@ export function registerBudgetTracker(Alpine) {
       this.error = "Please enter your partner's name";
       return;
     }
+    const unchanged = this.configureMode
+      && this.people.length > 0
+      && this.form.mode === (this.profile.mode || 'solo')
+      && names[0].trim() === (this.people[0]?.name || '').trim()
+      && (this.form.mode !== 'partner' || names[1]?.trim() === (this.people[1]?.name || '').trim());
+    if (unchanged) {
+      this.error = '';
+      this.wizardStep = 'income-0';
+      this.resetIncomeForm(this.people[0]?.id);
+      return;
+    }
     this.saving = true;
     this.error = '';
     try {
@@ -181,13 +291,28 @@ export function registerBudgetTracker(Alpine) {
     this.form.income = { person_id: personId, income_id: 0, label: '', amount: '' };
   },
 
-  resetExpenseForm(personId) {
-    this.form.expense = { person_id: personId, expense_id: 0, category: '', label: '', amount: '' };
+  resetExpenseForm(personId, keepCategory = false) {
+    this.form.expense = {
+      person_id: personId,
+      expense_id: 0,
+      category: keepCategory ? (this.form.expense.category || '') : '',
+      label: '',
+      amount: '',
+    };
   },
 
   async saveIncome(andContinue = false) {
     const f = this.form.income;
-    if (!f.label.trim() || !f.amount) {
+    const personId = f.person_id;
+    const hasExisting = this.incomeForPerson(personId).length > 0;
+    const hasNew = f.label.trim() && f.amount;
+
+    if (!hasNew) {
+      if (andContinue && hasExisting) {
+        this.error = '';
+        this.advanceFromIncome(personId);
+        return;
+      }
       this.error = 'Add a source name and amount';
       return;
     }
@@ -221,8 +346,17 @@ export function registerBudgetTracker(Alpine) {
 
   async saveExpense(andContinue = false) {
     const f = this.form.expense;
-    if (!f.category.trim() || !f.amount) {
-      this.error = 'Add a category and amount';
+    const personId = f.person_id;
+    const hasExisting = this.expensesForPerson(personId).length > 0;
+    const hasNew = f.category.trim() && f.amount;
+
+    if (!hasNew) {
+      if (andContinue && hasExisting) {
+        this.error = '';
+        this.advanceFromExpense(personId);
+        return;
+      }
+      this.error = 'Add a section and amount';
       return;
     }
     this.saving = true;
@@ -236,7 +370,7 @@ export function registerBudgetTracker(Alpine) {
         amount: f.amount,
       });
       this.applyState(data);
-      this.resetExpenseForm(f.person_id);
+      this.resetExpenseForm(f.person_id, !andContinue);
       if (andContinue && this.expensesForPerson(f.person_id).length > 0) {
         this.advanceFromExpense(f.person_id);
       }
@@ -306,6 +440,9 @@ export function registerBudgetTracker(Alpine) {
     try {
       const data = await this.post('/projects/budget-tracker/income/delete', { income_id: String(id) });
       this.applyState(data);
+      if (Number(this.form.income.income_id) === Number(id)) {
+        this.cancelIncomeEdit();
+      }
     } catch (e) {
       this.error = e.message;
     }
@@ -316,6 +453,9 @@ export function registerBudgetTracker(Alpine) {
     try {
       const data = await this.post('/projects/budget-tracker/expense/delete', { expense_id: String(id) });
       this.applyState(data);
+      if (Number(this.form.expense.expense_id) === Number(id)) {
+        this.cancelExpenseEdit();
+      }
     } catch (e) {
       this.error = e.message;
     }
@@ -332,11 +472,17 @@ export function registerBudgetTracker(Alpine) {
   },
 
   async finishOnboarding() {
+    if (this.configureMode && this.profile.onboarding_complete) {
+      this.exitConfigure();
+      return;
+    }
     this.saving = true;
     try {
       const data = await this.post('/projects/budget-tracker/profile/complete', {});
       this.applyState(data);
+      this.configureMode = false;
       this.showWizard = false;
+      this.section = 'budget';
       this.tab = 'overview';
     } catch (e) {
       this.error = e.message;
@@ -366,7 +512,20 @@ export function registerBudgetTracker(Alpine) {
     }
   },
 
+  cancelIncomeEdit() {
+    const personId = this.form.income.person_id || this.people[0]?.id;
+    this.resetIncomeForm(personId);
+    this.error = '';
+  },
+
+  cancelExpenseEdit() {
+    const personId = this.form.expense.person_id || this.people[0]?.id;
+    this.resetExpenseForm(personId);
+    this.error = '';
+  },
+
   editIncome(row) {
+    this.section = 'budget';
     this.form.income = {
       person_id: row.person_id,
       income_id: row.id,
@@ -377,6 +536,7 @@ export function registerBudgetTracker(Alpine) {
   },
 
   editExpense(row) {
+    this.section = 'budget';
     this.form.expense = {
       person_id: row.person_id,
       expense_id: row.id,

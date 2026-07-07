@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Projects\Registry;
 use PHPUnit\Framework\TestCase;
 
 /** Bootstrap helpers for audit grouping, summaries, admin access, and user-facing timestamps. */
@@ -92,6 +93,63 @@ final class BootstrapHelpersTest extends TestCase
         ]);
         $this->assertStringContainsString('sidebar.category.open', $summary);
         $this->assertStringContainsString('(encoders)', $summary);
+    }
+
+    /** Stickies save events show category and section in the audit log. */
+    public function test_event_summary_stickies_saved(): void
+    {
+        $summary = event_summary([
+            'type' => 'stickies.note.saved',
+            'subject_id' => '42',
+            'payload' => ['category' => 'work', 'section' => 'ideas', 'created' => true],
+        ]);
+        $this->assertStringContainsString('Sticky created', $summary);
+        $this->assertStringContainsString('work', $summary);
+        $this->assertStringContainsString('ideas', $summary);
+    }
+
+    /** Stickies move events include board coordinates for audit trail. */
+    public function test_event_summary_stickies_moved(): void
+    {
+        $summary = event_summary([
+            'type' => 'stickies.note.moved',
+            'subject_id' => '7',
+            'payload' => ['pos_x' => 100, 'pos_y' => 50, 'section' => 'board'],
+        ]);
+        $this->assertStringContainsString('(100,50)', $summary);
+        $this->assertStringContainsString('board', $summary);
+    }
+
+    /** Stickies delete events identify the removed note in the audit log. */
+    public function test_event_summary_stickies_deleted(): void
+    {
+        $summary = event_summary([
+            'type' => 'stickies.note.deleted',
+            'subject_id' => '12',
+            'payload' => [],
+        ]);
+        $this->assertStringContainsString('Sticky deleted #12', $summary);
+    }
+
+    /** Manual package events have human-readable summaries instead of raw type strings. */
+    public function test_event_summary_covers_manual_package_events(): void
+    {
+        foreach (Registry::packageEvents() as $event) {
+            if ($event['automatic'] ?? false) {
+                continue;
+            }
+            $type = (string) $event['type'];
+            $summary = event_summary([
+                'type' => $type,
+                'subject_id' => '1',
+                'payload' => [],
+            ]);
+            $this->assertNotSame(
+                $type,
+                $summary,
+                "Event {$type} needs a dedicated event_summary handler",
+            );
+        }
     }
 
     /** Relative and timezone-formatted timestamps render correctly on status and audit pages. */

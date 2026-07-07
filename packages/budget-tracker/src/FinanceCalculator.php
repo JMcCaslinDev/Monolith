@@ -7,9 +7,10 @@ namespace BudgetTracker;
 /** Pure budget math: totals, income share, and compound-growth projections. */
 final class FinanceCalculator
 {
-    public const HOURS_PER_YEAR = 8760;
+    // ponytail: 40 hr/week × 4 weeks; upgrade path: user setting for hours/month
+    public const WORK_HOURS_PER_MONTH = 160;
 
-    public const DAYS_PER_YEAR = 365;
+    public const WORK_HOURS_PER_DAY = 8;
 
   /** @param list<array{amount_cents: int}> $lines */
     public static function sumCents(array $lines): int
@@ -38,12 +39,14 @@ final class FinanceCalculator
         return $out;
     }
 
-  /** Share of income the purchase represents across calendar periods. */
+  /** Share of income the purchase represents (40 hr/week work model). */
   /** @return array{
    *   annual_income_cents: int,
+   *   monthly_income_cents: int,
+   *   assumed_hourly_cents: int,
    *   purchase_cents: int,
    *   percent_of_annual: float,
-   *   months_of_income: float,
+   *   percent_of_monthly: float,
    *   days_of_income: float,
    *   hours_of_income: float
    * }
@@ -55,25 +58,29 @@ final class FinanceCalculator
         if ($monthly < 1) {
             return [
             'annual_income_cents' => 0,
+            'monthly_income_cents' => 0,
+            'assumed_hourly_cents' => 0,
             'purchase_cents' => $purchase,
             'percent_of_annual' => 0.0,
-            'months_of_income' => 0.0,
+            'percent_of_monthly' => 0.0,
             'days_of_income' => 0.0,
             'hours_of_income' => 0.0,
             ];
         }
 
         $annual = $monthly * 12;
-        $daily = $annual / self::DAYS_PER_YEAR;
-        $hourly = $annual / self::HOURS_PER_YEAR;
+        $assumedHourly = $monthly / self::WORK_HOURS_PER_MONTH;
+        $workDaily = $assumedHourly * self::WORK_HOURS_PER_DAY;
 
         return [
         'annual_income_cents' => $annual,
+        'monthly_income_cents' => $monthly,
+        'assumed_hourly_cents' => (int) round($assumedHourly),
         'purchase_cents' => $purchase,
         'percent_of_annual' => round(($purchase / $annual) * 100, 2),
-        'months_of_income' => round($purchase / $monthly, 2),
-        'days_of_income' => round($purchase / $daily, 2),
-        'hours_of_income' => round($purchase / $hourly, 2),
+        'percent_of_monthly' => round(($purchase / $monthly) * 100, 2),
+        'days_of_income' => round($purchase / $workDaily, 2),
+        'hours_of_income' => round($purchase / $assumedHourly, 2),
         ];
     }
 
@@ -99,15 +106,11 @@ final class FinanceCalculator
    */
     public static function investmentProjections(
         int $principalCents,
-        array $horizonYears = [1, 5, 10, 20, 30],
+        array $horizonYears = [1, 10, 30],
         array $annualRates = [
       ['rate' => 3.5, 'label' => 'High-yield savings (~3–4%)'],
-      ['rate' => 4.0, 'label' => 'High-yield savings (4%)'],
-      ['rate' => 6.0, 'label' => 'Premium savings / X account (~6%)'],
-      ['rate' => 7.0, 'label' => 'S&P 500 conservative (7%)'],
-      ['rate' => 8.0, 'label' => 'S&P 500 average (8%)'],
-      ['rate' => 10.0, 'label' => 'Growth portfolio (10%)'],
-      ['rate' => 12.0, 'label' => 'Aggressive growth (12%)'],
+      ['rate' => 7.0, 'label' => 'S&P 500 (7%)'],
+      ['rate' => 10.0, 'label' => 'S&P 500 (10%)'],
         ],
     ): array {
         $principal = max(0, $principalCents);
