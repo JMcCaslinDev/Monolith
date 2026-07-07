@@ -13,6 +13,9 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:stop": "spindb stop monolith",
     "db:status": "spindb info monolith",
+    "test": "composer test",
+    "lint": "composer lint",
+    "format": "composer format",
     "tunnel": "ngrok http 8000"
   },
   "dependencies": {

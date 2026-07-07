@@ -1,14 +1,15 @@
 <?php
 
-declare(strict_types=1);
-
-use App\Projects\Registry;
-
 /**
  * Living registry — core system permissions, routes, events.
  * Package manifests in packages/ are merged automatically.
  * Run: php scripts/check-registry.php && php scripts/check-coverage.php
  */
+
+declare(strict_types=1);
+
+use App\Projects\Registry;
+
 $core = [
     'permissions' => [
         ['name' => 'pages.dashboard.view', 'description' => 'View dashboard', 'category' => 'pages'],
@@ -23,6 +24,7 @@ $core = [
         ['method' => 'GET', 'path' => '/admin/events', 'permission' => 'admin.events.view', 'event' => 'page.viewed'],
         ['method' => 'GET', 'path' => '/admin/users', 'permission' => 'admin.users.manage', 'event' => 'page.viewed'],
         ['method' => 'GET', 'path' => '/admin/permissions', 'permission' => 'admin.permissions.manage', 'event' => 'page.viewed'],
+        ['method' => 'GET', 'path' => '/admin/status', 'permission' => 'admin.hub', 'event' => 'page.viewed'],
     ],
     'mutations' => [
         ['method' => 'POST', 'path' => '/profile/theme', 'permission' => null, 'event' => 'settings.theme.changed', 'note' => 'Auth only'],

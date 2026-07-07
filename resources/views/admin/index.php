@@ -24,6 +24,10 @@
         <p class="mt-1 text-sm text-muted">Assign member, viewer, admin, or owner to accounts.</p>
     </a>
     <?php endif; ?>
+    <a href="/admin/status" class="card p-5 transition hover:border-slate-400 dark:hover:border-slate-600">
+        <h3 class="font-medium">System status</h3>
+        <p class="mt-1 text-sm text-muted">Unit tests, coverage, and registry health.</p>
+    </a>
 </div>
 <?php
 $content = ob_get_clean();

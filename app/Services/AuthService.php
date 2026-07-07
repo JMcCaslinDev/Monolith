@@ -16,7 +16,8 @@ final class AuthService
         private PDO $db,
         private PermissionService $permissions,
         private EventRecorder $events,
-    ) {}
+    ) {
+    }
 
     private function auth0(): Auth0
     {

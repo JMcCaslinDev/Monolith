@@ -11,7 +11,9 @@ final class PermissionService
     /** @var array<string, int> highest access first */
     private const ROLE_LEVEL = ['owner' => 0, 'admin' => 1, 'member' => 2, 'viewer' => 3];
 
-    public function __construct(private PDO $db) {}
+    public function __construct(private PDO $db)
+    {
+    }
 
     public function can(int $userId, string $permission): bool
     {
@@ -25,7 +27,7 @@ final class PermissionService
                 SELECT p.name FROM grants g
                 JOIN permissions p ON p.id = g.permission_id
                 WHERE g.user_id = :uid2
-                  AND (g.expires_at IS NULL OR g.expires_at > UTC_TIMESTAMP())
+                  AND (g.expires_at IS NULL OR g.expires_at > CURRENT_TIMESTAMP)
             ) AS perms WHERE name = :perm LIMIT 1'
         );
         $stmt->execute(['uid' => $userId, 'uid2' => $userId, 'perm' => $permission]);
@@ -45,7 +47,7 @@ final class PermissionService
                 SELECT p.name FROM grants g
                 JOIN permissions p ON p.id = g.permission_id
                 WHERE g.user_id = :uid2
-                  AND (g.expires_at IS NULL OR g.expires_at > UTC_TIMESTAMP())
+                  AND (g.expires_at IS NULL OR g.expires_at > CURRENT_TIMESTAMP)
             ) AS perms ORDER BY name'
         );
         $stmt->execute(['uid' => $userId, 'uid2' => $userId]);
@@ -147,8 +149,14 @@ final class PermissionService
         $roleId = $this->roleId($roleName);
         $permId = $this->permissionId($permissionName);
         if ($enabled) {
-            $this->db->prepare('INSERT IGNORE INTO role_permission (role_id, permission_id) VALUES (?, ?)')
-                ->execute([$roleId, $permId]);
+            $exists = $this->db->prepare(
+                'SELECT 1 FROM role_permission WHERE role_id = ? AND permission_id = ?'
+            );
+            $exists->execute([$roleId, $permId]);
+            if (!$exists->fetchColumn()) {
+                $this->db->prepare('INSERT INTO role_permission (role_id, permission_id) VALUES (?, ?)')
+                    ->execute([$roleId, $permId]);
+            }
         } else {
             $this->db->prepare('DELETE FROM role_permission WHERE role_id = ? AND permission_id = ?')
                 ->execute([$roleId, $permId]);
@@ -158,10 +166,8 @@ final class PermissionService
     public function assignRole(int $userId, string $roleName): void
     {
         $roleId = $this->roleId($roleName);
-        $stmt = $this->db->prepare(
-            'INSERT IGNORE INTO user_role (user_id, role_id) VALUES (:uid, :rid)'
-        );
-        $stmt->execute(['uid' => $userId, 'rid' => $roleId]);
+        $this->db->prepare('INSERT INTO user_role (user_id, role_id) VALUES (?, ?)')
+            ->execute([$userId, $roleId]);
     }
 
     public function setRole(int $userId, string $roleName): void
@@ -184,16 +190,22 @@ final class PermissionService
 
     public function grantUser(int $userId, string $permissionName): void
     {
-        $this->db->prepare('INSERT IGNORE INTO grants (user_id, permission_id) VALUES (?, ?)')
-            ->execute([$userId, $this->permissionId($permissionName)]);
+        $permId = $this->permissionId($permissionName);
+        $exists = $this->db->prepare('SELECT 1 FROM grants WHERE user_id = ? AND permission_id = ?');
+        $exists->execute([$userId, $permId]);
+        if ($exists->fetchColumn()) {
+            return;
+        }
+        $this->db->prepare('INSERT INTO grants (user_id, permission_id) VALUES (?, ?)')
+            ->execute([$userId, $permId]);
     }
 
     public function revokeUserGrant(int $userId, string $permissionName): void
     {
         $this->db->prepare(
-            'DELETE g FROM grants g
-             JOIN permissions p ON p.id = g.permission_id
-             WHERE g.user_id = ? AND p.name = ?'
+            'DELETE FROM grants WHERE user_id = ? AND permission_id = (
+                SELECT id FROM permissions WHERE name = ?
+            )'
         )->execute([$userId, $permissionName]);
     }
 

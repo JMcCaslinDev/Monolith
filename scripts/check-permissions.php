@@ -1,5 +1,6 @@
 #!/usr/bin/env php
 <?php
+
 // ponytail: smallest check — owner role must include every permission in config
 declare(strict_types=1);
 

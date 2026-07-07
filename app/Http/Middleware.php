@@ -14,7 +14,8 @@ final class Middleware
         private AuthService $auth,
         private PermissionService $permissions,
         private EventRecorder $events,
-    ) {}
+    ) {
+    }
 
     public function auth(): void
     {

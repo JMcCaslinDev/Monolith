@@ -8,7 +8,9 @@ use PDO;
 
 final class UserSettingsService
 {
-    public function __construct(private PDO $db) {}
+    public function __construct(private PDO $db)
+    {
+    }
 
     /** @return mixed */
     public function get(int $userId, string $key, mixed $default = null): mixed
@@ -26,11 +28,12 @@ final class UserSettingsService
 
     public function set(int $userId, string $key, mixed $value): void
     {
+        $json = json_encode($value, JSON_THROW_ON_ERROR);
+        $this->db->prepare('DELETE FROM user_settings WHERE user_id = ? AND setting_key = ?')
+            ->execute([$userId, $key]);
         $this->db->prepare(
-            'INSERT INTO user_settings (user_id, setting_key, setting_value)
-             VALUES (?, ?, ?)
-             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
-        )->execute([$userId, $key, json_encode($value, JSON_THROW_ON_ERROR)]);
+            'INSERT INTO user_settings (user_id, setting_key, setting_value) VALUES (?, ?, ?)'
+        )->execute([$userId, $key, $json]);
     }
 
     /** @param list<string> $openableProjectIds */

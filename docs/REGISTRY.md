@@ -18,6 +18,13 @@ php scripts/check-coverage.php
 4. **`event_summary()`** in `app/bootstrap.php` for new event types.
 5. Run checks.
 
+```bash
+composer test
+php scripts/check-registry.php
+```
+
+See **`.cursor/skills/unit-tests/SKILL.md`** when writing tests.
+
 See **`packages/README.md`** for layout.
 
 ## Checklist — feature inside a package

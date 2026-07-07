@@ -16,6 +16,8 @@ Read `docs/ARCHITECTURE.md`, `docs/REGISTRY.md`, `docs/PERMISSIONS.md`, and `doc
 - Every protected route declares a permission (`resource.action`).
 - Every state-changing action emits an event via `EventRecorder`.
 - Update **`config/registry.php`** when adding permissions, routes, or events — run `php scripts/check-registry.php` and `php scripts/check-coverage.php`.
+- New behavior needs a **useful unit test** — see `.cursor/skills/unit-tests/SKILL.md`; run `composer test`.
+- Run `composer lint` / `composer format` (phpcs / phpcbf, PSR-12) before committing PHP changes.
 
 ## Stack
 

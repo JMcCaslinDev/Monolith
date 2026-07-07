@@ -1,11 +1,12 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Tools package — internal utilities project.
  * Add tools here; register permissions and routes in this manifest.
  */
+
+declare(strict_types=1);
+
 return [
     'id' => 'tools',
     'project' => [
