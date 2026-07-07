@@ -7,6 +7,7 @@ use App\Projects\Registry;
 use App\Services\AuthService;
 use App\Services\EventRecorder;
 use App\Services\PermissionService;
+use App\Services\TestStatusReader;
 use App\Services\UserSettingsService;
 use Dotenv\Dotenv;
 
@@ -77,6 +78,12 @@ function user_settings(): UserSettingsService
 {
     static $s = null;
     return $s ??= new UserSettingsService(db());
+}
+
+function test_status(): TestStatusReader
+{
+    static $t = null;
+    return $t ??= new TestStatusReader();
 }
 
 function auth(): AuthService

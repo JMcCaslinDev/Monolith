@@ -1,0 +1,26 @@
+---
+description: After PHP changes, run phpcbf, phpcs, and PHPUnit before finishing the task.
+alwaysApply: true
+---
+
+# PHP verify (post-task)
+
+After any task that touches PHP — `app/`, `routes/`, `config/`, `tests/`, `scripts/`, `packages/`, `public/index.php` — run these **before** you report done:
+
+```bash
+composer format   # phpcbf — auto-fix PSR-12
+composer lint     # phpcs — must pass with zero violations
+composer test     # PHPUnit — all tests must pass
+```
+
+If `lint` or `test` fails, fix the code and re-run until green. Do not skip because the task "seems small."
+
+## When to also run
+
+- Permissions, routes, or events changed → `php scripts/check-registry.php` and `php scripts/check-coverage.php`
+- New behavior → add a useful test (see `.cursor/skills/unit-tests/SKILL.md`), then `composer test`
+
+## Scope
+
+- **phpcs** covers PHP logic files only (`phpcs.xml`); views in `resources/views/` are excluded.
+- Question-only or docs-only tasks — skip verify unless PHP was edited.

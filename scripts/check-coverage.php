@@ -1,5 +1,6 @@
 #!/usr/bin/env php
 <?php
+
 // ponytail: fail if registry routes/mutations drift from code or events missing
 declare(strict_types=1);
 

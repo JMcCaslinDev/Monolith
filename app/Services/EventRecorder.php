@@ -10,7 +10,9 @@ final class EventRecorder
 {
     private static ?string $correlationId = null;
 
-    public function __construct(private PDO $db) {}
+    public function __construct(private PDO $db)
+    {
+    }
 
     public static function correlationId(): string
     {

@@ -88,6 +88,12 @@ final class Registry
         return $events;
     }
 
+    /** ponytail: test-only — clears cached package manifests */
+    public static function resetForTests(): void
+    {
+        self::$packages = null;
+    }
+
     /** @return list<array<string, mixed>> */
     public static function packageRoutes(): array
     {

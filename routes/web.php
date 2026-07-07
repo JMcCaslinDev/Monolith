@@ -92,6 +92,41 @@ $routes = [
         view('admin/index', ['title' => 'Administration']);
     }, ['auth']),
 
+    'GET /admin/status' => fn () => dispatch(function (): void {
+        require_admin_hub();
+        view('admin/status', [
+            'title' => 'System status',
+            'testStatus' => test_status()->read(),
+            'healthChecks' => test_status()->runHealthChecks(),
+            'canRunTests' => test_status()->canRunFromWeb(),
+            'flash' => $_SESSION['status_flash'] ?? null,
+        ]);
+        unset($_SESSION['status_flash']);
+    }, ['auth']),
+
+    'POST /admin/status/run' => fn () => dispatch(function (): void {
+        verify_csrf();
+        require_admin_hub();
+        if (!test_status()->canRunFromWeb()) {
+            http_response_code(403);
+            exit('Tests can only run in local environment');
+        }
+        $code = test_status()->run();
+        $_SESSION['status_flash'] = [
+            'ok' => $code === 0,
+            'message' => $code === 0 ? 'All tests passed.' : 'Tests failed — see results below.',
+        ];
+        header('Location: /admin/status');
+        exit;
+    }, ['auth'], recordPageView: false),
+
+    'POST /admin/status/checks' => fn () => dispatch(function (): void {
+        verify_csrf();
+        require_admin_hub();
+        header('Location: /admin/status');
+        exit;
+    }, ['auth'], recordPageView: false),
+
     'GET /admin/events' => fn () => dispatch(function (): void {
         view('admin/events', [
             'title' => 'Audit log',

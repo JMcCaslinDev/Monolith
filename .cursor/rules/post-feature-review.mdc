@@ -1,0 +1,18 @@
+---
+description: After feature work, run the code-review skill before reporting done.
+alwaysApply: true
+---
+
+# Post-feature code review
+
+When you **implement** a feature (new/changed routes, services, views, packages, migrations, permissions, events, or UI behavior):
+
+1. **Read and execute** `.cursor/skills/code-review/SKILL.md` — full checklist, Ponytail (`ponytail.mdc`), stack, and patterns.
+2. **Fix** any Critical findings; re-run verification until green.
+3. **Include** the skill's review output template in your final reply (can be brief if everything passed).
+
+Then follow `.cursor/rules/php-verify.mdc` if not already done.
+
+**Skip** for: questions/explanations only, docs-only edits, or the user explicitly says "no review."
+
+Do not mark the task complete until the code-review skill has run.

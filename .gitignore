@@ -1,6 +1,7 @@
 /vendor/
 /node_modules/
 /public/build/
+/var/
 .env
 .DS_Store
 *.log

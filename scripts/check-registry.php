@@ -1,5 +1,6 @@
 #!/usr/bin/env php
 <?php
+
 // ponytail: fail fast if registry and DB drift apart
 declare(strict_types=1);
 
