@@ -1,0 +1,20 @@
+config:
+  aws:region:
+    description: AWS region
+    default: us-east-1
+  monolith:domain:
+    description: Production domain (e.g. tools.example.com)
+  monolith:hostedZoneId:
+    description: Existing Route53 hosted zone id (optional)
+  monolith:dbName:
+    description: MariaDB database name
+    secret: true
+  monolith:dbUsername:
+    description: MariaDB username
+    secret: true
+  monolith:dbPassword:
+    description: MariaDB password
+    secret: true
+  monolith:imageTag:
+    description: Docker image tag to deploy
+    default: latest

@@ -1,0 +1,3 @@
+name: monolith
+runtime: nodejs
+description: Monolith AWS infrastructure

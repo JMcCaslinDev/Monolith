@@ -1,0 +1,29 @@
+---
+description: Monolith project conventions — permissions, events, MariaDB, stack choices.
+alwaysApply: true
+---
+
+# Monolith
+
+Read `docs/ARCHITECTURE.md`, `docs/REGISTRY.md`, `docs/PERMISSIONS.md`, and `docs/EVENTS.md` before adding features.
+
+## Non-negotiables
+
+- Database: **MariaDB** (PHP `pdo_mysql`; AWS RDS engine `mariadb`).
+- Package manager: **pnpm** only (root app + `infra/` workspace).
+- UI: **Tailwind + Alpine** — no React/Vue unless explicitly requested.
+- Auth: **Auth0** for identity; **permissions** enforced in PHP.
+- Every protected route declares a permission (`resource.action`).
+- Every state-changing action emits an event via `EventRecorder`.
+- Update **`config/registry.php`** when adding permissions, routes, or events — run `php scripts/check-registry.php` and `php scripts/check-coverage.php`.
+
+## Stack
+
+PHP 8.3, server-rendered views in `resources/views/`, routes in `routes/web.php`, config in `config/`.
+
+## Adding a tool
+
+1. Create or extend a package under `packages/` — see `packages/README.md` and `docs/REGISTRY.md`
+2. Migration for permissions
+3. Routes in package `routes.php` behind permission checks
+4. Events on use
