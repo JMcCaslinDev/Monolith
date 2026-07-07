@@ -14,7 +14,12 @@ $initials = strtoupper(substr($user['name'] ?? $user['email'], 0, 1));
             </nav>
         </div>
 
-        <div class="relative" x-data="{ open: false }" @keydown.escape.window="open = false">
+        <div class="flex items-center gap-3">
+            <?php if (!empty($navbarAdminVisible)): ?>
+            <span class="hidden h-6 w-px shrink-0 bg-slate-300 dark:bg-slate-700 sm:block" aria-hidden="true"></span>
+            <a href="/admin" class="nav-link hidden sm:inline-flex">Admin</a>
+            <?php endif; ?>
+            <div class="relative" x-data="{ open: false }" @keydown.escape.window="open = false">
             <button
                 type="button"
                 @click="open = !open"
@@ -36,9 +41,6 @@ $initials = strtoupper(substr($user['name'] ?? $user['email'], 0, 1));
                     <span class="mt-2 inline-block rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-300"><?= htmlspecialchars($roleLabel, ENT_QUOTES) ?></span>
                 </a>
                 <a href="/profile" @click="open = false" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">Profile &amp; settings</a>
-                <?php if (!empty($hasAdminAccess)): ?>
-                <a href="/admin" @click="open = false" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">Admin</a>
-                <?php endif; ?>
                 <a href="/logout" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">Sign out</a>
             </div>
         </div>

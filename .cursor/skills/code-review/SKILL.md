@@ -84,6 +84,7 @@ Apply the lazy-senior ladder from `ponytail.mdc`:
 
 - [ ] New behavior has a **useful** test per `.cursor/skills/unit-tests/SKILL.md`
 - [ ] Tests assert behavior, not tautologies
+- [ ] Class + method docblocks on new/changed test files (status UI)
 - [ ] `composer test` green
 
 ## Verification

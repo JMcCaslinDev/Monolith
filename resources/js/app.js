@@ -1,5 +1,6 @@
 import '../css/app.css';
 import Alpine from 'alpinejs';
+import { registerDevtools } from './devtools.js';
 
 const STORAGE_KEY = 'monolith-theme';
 
@@ -32,21 +33,39 @@ function setTheme(preference) {
   }
 }
 
+const LOG_META_KEYS = new Set(['input_bytes', 'field', 'category', 'tool', 'theme', 'error']);
+
 function logAction(action, meta = {}) {
   const token = document.querySelector('meta[name="csrf-token"]')?.content;
   if (!token) return;
   const body = new URLSearchParams({ csrf: token, action });
   for (const [key, value] of Object.entries(meta)) {
-    body.set(key, String(value));
+    if (!LOG_META_KEYS.has(key)) continue;
+    body.set(key, String(value).slice(0, 64));
   }
   fetch('/events/action', { method: 'POST', body }).catch(() => {});
 }
 
 window.logAction = logAction;
 
+function bootstrapTimezone() {
+  const token = document.querySelector('meta[name="csrf-token"]')?.content;
+  const configured = document.querySelector('meta[name="timezone-configured"]')?.content === '1';
+  if (!token || configured) return;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!tz) return;
+  fetch('/profile/timezone', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `timezone=${encodeURIComponent(tz)}&auto=1&csrf=${encodeURIComponent(token)}`,
+  }).catch(() => {});
+}
+
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (getStoredTheme() === 'system') applyTheme('system');
 });
+
+registerDevtools(Alpine);
 
 Alpine.data('themeSettings', () => ({
   preference: getStoredTheme(),
@@ -58,3 +77,4 @@ Alpine.data('themeSettings', () => ({
 
 window.Alpine = Alpine;
 Alpine.start();
+bootstrapTimezone();

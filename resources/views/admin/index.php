@@ -29,6 +29,19 @@
         <p class="mt-1 text-sm text-muted">Unit tests, coverage, and registry health.</p>
     </a>
 </div>
+
+<section class="card mt-8 p-6">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-muted">Navigation bar</h2>
+    <p class="mt-2 text-sm text-muted">Show Admin in the top navigation bar (right side, before your profile menu).</p>
+    <form method="post" action="/admin/navbar" class="mt-4">
+        <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>">
+        <label class="flex cursor-pointer items-center gap-3">
+            <input type="checkbox" name="visible" value="1" <?= !empty($navbarAdminVisible) ? 'checked' : '' ?> class="rounded border-slate-400">
+            <span class="text-sm font-medium">Show Admin in navbar</span>
+        </label>
+        <button type="submit" class="btn-primary mt-4">Save</button>
+    </form>
+</section>
 <?php
 $content = ob_get_clean();
 require dirname(__DIR__) . '/layout.php';

@@ -107,4 +107,18 @@ final class Registry
         }
         return $routes;
     }
+
+    /** @return list<array<string, mixed>> */
+    public static function packageMutations(): array
+    {
+        $mutations = [];
+        foreach (self::packages() as $pkg) {
+            foreach ($pkg['mutations'] ?? [] as $mutation) {
+                if (is_array($mutation)) {
+                    $mutations[] = $mutation;
+                }
+            }
+        }
+        return $mutations;
+    }
 }

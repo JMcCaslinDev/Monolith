@@ -5,7 +5,7 @@ Internal projects live under `packages/{name}/`. Each package is self-contained 
 ## Layout
 
 ```
-packages/tools/
+packages/devtools/
   manifest.php    # project meta, permissions, routes, events
   routes.php      # HTTP handlers (merged into routes/web.php)
   views/          # package views (rendered via package_view())
@@ -36,4 +36,4 @@ Each project uses two top-level permissions:
 | `projects.{id}.view` | Show on dashboard |
 | `projects.{id}.open` | Enter the project |
 
-Internal features use their own permissions (e.g. `tools.json-converter.use`).
+Internal features use their own permissions (e.g. `devtools.formatters.json.use`). Category permissions like `devtools.converters.use` grant all tools in that group.

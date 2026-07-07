@@ -58,6 +58,8 @@ function db(): PDO
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
+    // ponytail: MariaDB TIMESTAMP reads use session TZ; force UTC so parse_utc_datetime() matches storage.
+    $pdo->exec("SET time_zone = '+00:00'");
 
     return $pdo;
 }
@@ -105,9 +107,6 @@ function view(string $template, array $data = []): void
         ? permissions()->allForUser((int) $data['user']['id'])
         : [];
     $data['userPermissions'] = $userPermissions;
-    if (!array_key_exists('permissions', $data)) {
-        $data['permissions'] = $userPermissions;
-    }
     $data['userRoles'] = $data['user'] ? user_roles((int) $data['user']['id']) : [];
     if ($data['user']) {
         $data['navbarProjects'] = navbar_projects_for_user(
@@ -115,9 +114,14 @@ function view(string $template, array $data = []): void
             $userPermissions
         );
         $data['hasAdminAccess'] = has_admin_access($userPermissions);
+        $data['navbarAdminVisible'] = navbar_admin_visible(
+            (int) $data['user']['id'],
+            $data['hasAdminAccess'],
+        );
     } else {
         $data['navbarProjects'] = [];
         $data['hasAdminAccess'] = false;
+        $data['navbarAdminVisible'] = false;
     }
     extract($data, EXTR_SKIP);
     require dirname(__DIR__) . "/resources/views/{$template}.php";
@@ -130,9 +134,6 @@ function package_view(string $package, string $template, array $data = []): void
         ? permissions()->allForUser((int) $data['user']['id'])
         : [];
     $data['userPermissions'] = $userPermissions;
-    if (!array_key_exists('permissions', $data)) {
-        $data['permissions'] = $userPermissions;
-    }
     $data['userRoles'] = $data['user'] ? user_roles((int) $data['user']['id']) : [];
     if ($data['user']) {
         $data['navbarProjects'] = navbar_projects_for_user(
@@ -140,6 +141,17 @@ function package_view(string $package, string $template, array $data = []): void
             $userPermissions
         );
         $data['hasAdminAccess'] = has_admin_access($userPermissions);
+        $data['navbarAdminVisible'] = navbar_admin_visible(
+            (int) $data['user']['id'],
+            $data['hasAdminAccess'],
+        );
+    } else {
+        $data['navbarProjects'] = [];
+        $data['hasAdminAccess'] = false;
+        $data['navbarAdminVisible'] = false;
+    }
+    if (!array_key_exists('fullWidth', $data)) {
+        $data['fullWidth'] = false;
     }
     extract($data, EXTR_SKIP);
     ob_start();
@@ -195,6 +207,15 @@ function navbar_projects_for_user(int $userId, array $permissions): array
     return $items;
 }
 
+function navbar_admin_visible(int $userId, bool $hasAdminAccess): bool
+{
+    if (!$hasAdminAccess) {
+        return false;
+    }
+    $saved = user_settings()->get($userId, 'navbar_admin');
+    return $saved === null ? true : (bool) $saved;
+}
+
 /** @param list<string> $permissions */
 /** @return list<array<string, mixed>> */
 function visible_projects_for_user(array $permissions): array
@@ -217,10 +238,23 @@ function request_path(): string
     return parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 }
 
+function should_record_page_event(string $path): bool
+{
+    if ($path === '/health') {
+        return false;
+    }
+    // ponytail: Chrome DevTools probes /.well-known/... in the background — not user navigation
+    if (str_starts_with($path, '/.well-known/')) {
+        return false;
+    }
+
+    return true;
+}
+
 function record_page_view(): void
 {
     $path = request_path();
-    if ($path === '/health') {
+    if (!should_record_page_event($path)) {
         return;
     }
 
@@ -307,7 +341,7 @@ function group_events(array $events): array
 /** @param list<array<string, mixed>> $items */
 function pick_primary_event(array $items): array
 {
-    $priority = ['page.viewed', 'page.not_found', 'project.opened', 'tool.json_converter.used', 'action.performed'];
+    $priority = ['page.viewed', 'page.not_found', 'project.opened', 'devtools.tool.opened', 'devtools.tool.used', 'action.performed'];
     foreach ($priority as $type) {
         foreach ($items as $item) {
             if (($item['type'] ?? '') === $type) {
@@ -323,7 +357,92 @@ function enrich_event(array $event): array
 {
     $event['summary'] = event_summary($event);
     $event['payload_data'] = event_payload($event);
+    $user = auth()->currentUser();
+    if ($user && !empty($event['created_at'])) {
+        $uid = (int) $user['id'];
+        $at = (string) $event['created_at'];
+        $event['created_at_display'] = format_user_datetime($at, $uid);
+        $event['created_at_ago'] = time_ago($at);
+    }
     return $event;
+}
+
+function default_timezone(): string
+{
+    return 'America/Los_Angeles';
+}
+
+function is_valid_timezone(string $tz): bool
+{
+    return in_array($tz, timezone_identifiers_list(), true);
+}
+
+/** @return array<string, string> */
+function timezone_options(): array
+{
+    return [
+        'America/Los_Angeles' => 'Pacific (PT)',
+        'America/Denver' => 'Mountain (MT)',
+        'America/Chicago' => 'Central (CT)',
+        'America/New_York' => 'Eastern (ET)',
+        'America/Anchorage' => 'Alaska',
+        'Pacific/Honolulu' => 'Hawaii',
+        'UTC' => 'UTC',
+        'Europe/London' => 'London',
+        'Europe/Paris' => 'Central Europe',
+        'Asia/Tokyo' => 'Tokyo',
+        'Australia/Sydney' => 'Sydney',
+    ];
+}
+
+function saved_user_timezone(int $userId): ?string
+{
+    $tz = user_settings()->get($userId, 'timezone');
+    return is_string($tz) && is_valid_timezone($tz) ? $tz : null;
+}
+
+function user_timezone(int $userId): string
+{
+    return saved_user_timezone($userId) ?? default_timezone();
+}
+
+function parse_utc_datetime(string $value): DateTimeImmutable
+{
+    $value = trim($value);
+    if ($value !== '' && !preg_match('/([Zz]|[+-]\d{2}:?\d{2})$/', $value)) {
+        $value = str_replace(' ', 'T', $value) . 'Z';
+    }
+    return new DateTimeImmutable($value, new DateTimeZone('UTC'));
+}
+
+function format_user_datetime(string $value, int $userId): string
+{
+    $dt = parse_utc_datetime($value)->setTimezone(new DateTimeZone(user_timezone($userId)));
+    return $dt->format('M j, Y g:i A T');
+}
+
+function time_ago(string $value): string
+{
+    $seconds = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp()
+        - parse_utc_datetime($value)->getTimestamp();
+    if ($seconds < 0) {
+        return 'just now';
+    }
+    $intervals = [
+        31536000 => 'year',
+        2592000 => 'month',
+        604800 => 'week',
+        86400 => 'day',
+        3600 => 'hour',
+        60 => 'minute',
+    ];
+    foreach ($intervals as $secs => $label) {
+        if ($seconds >= $secs) {
+            $n = (int) floor($seconds / $secs);
+            return $n . ' ' . $label . ($n === 1 ? '' : 's') . ' ago';
+        }
+    }
+    return $seconds <= 5 ? 'just now' : $seconds . ' seconds ago';
 }
 
 /** @param array<string, mixed> $event */
@@ -341,15 +460,25 @@ function event_summary(array $event): string
         'page.not_found' => sprintf('404 %s', $payload['path'] ?? $event['subject_id'] ?? ''),
         'permission.granted' => 'Allowed ' . ($payload['permission'] ?? $event['subject_id'] ?? ''),
         'permission.denied' => 'Denied ' . ($payload['permission'] ?? $event['subject_id'] ?? ''),
-        'tool.json_converter.used' => 'Opened JSON converter',
+        'devtools.tool.opened' => 'Opened Dev Tools: '
+            . ($payload['tool'] ?? $event['subject_id'] ?? '?'),
+        'devtools.tool.used' => 'Dev Tools: '
+            . ($payload['tool'] ?? '?') . ' — ' . ($payload['action'] ?? 'action'),
         'action.performed' => match (true) {
             str_starts_with((string) ($payload['action'] ?? ''), 'json.') => 'JSON: '
                 . substr($payload['action'], 5)
+                . (isset($payload['input_bytes']) ? ' (' . $payload['input_bytes'] . ' bytes)' : ''),
+            str_starts_with((string) ($payload['action'] ?? ''), 'devtools.') => 'Dev Tools: '
+                . substr($payload['action'], 9)
+                . (isset($payload['field']) ? ' [' . $payload['field'] . ']' : '')
+                . (isset($payload['category']) ? ' (' . $payload['category'] . ')' : '')
+                . (isset($payload['error']) ? ' !' . $payload['error'] : '')
                 . (isset($payload['input_bytes']) ? ' (' . $payload['input_bytes'] . ' bytes)' : ''),
             default => ($payload['action'] ?? $event['subject_id'] ?? 'action')
                 . (isset($payload['input_bytes']) ? ' (' . $payload['input_bytes'] . ' bytes)' : ''),
         },
         'settings.theme.changed' => 'Theme → ' . ($payload['theme'] ?? '?'),
+        'settings.timezone.changed' => 'Timezone → ' . ($payload['timezone'] ?? '?'),
         'auth.login' => 'Signed in',
         'auth.logout' => 'Signed out',
         'auth.login.started' => 'Login redirect',

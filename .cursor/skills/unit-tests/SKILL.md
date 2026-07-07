@@ -4,6 +4,7 @@ description: >-
   Write PHPUnit unit tests for Monolith (PHP). Use when adding features,
   fixing bugs, or when the user asks for tests, coverage, or test quality.
   Enforces meaningful behavioral tests — not surface-level getters or tautologies.
+  Requires class and method docblocks for the admin status UI.
 ---
 
 # Monolith unit tests
@@ -47,8 +48,10 @@ namespace Tests\Unit;
 use App\Services\PermissionService;
 use Tests\Support\TestCase;
 
+/** Grants and roles enforced by PermissionService. */
 final class PermissionServiceTest extends TestCase
 {
+    /** Members cannot access admin routes without an explicit grant. */
     public function test_member_cannot_access_admin_without_grant(): void
     {
         $memberId = $this->insertMember();
@@ -59,6 +62,35 @@ final class PermissionServiceTest extends TestCase
 ```
 
 Pass `$this->db` into services — do not use global `db()` in unit tests.
+
+## Descriptions (required for admin status UI)
+
+Every test file feeds **Admin → System status** (`/admin/status`). `TestStatusReader` parses docblocks from the PHP source — not PHPUnit metadata.
+
+| Docblock location | Required | Shown when |
+|-------------------|----------|------------|
+| **Above `final class …Test`** | Yes | User clicks a suite circle (big node) |
+| **Above each `test_*` method** | Yes | Suite list, test dot hover, single-test popup |
+
+**Format:** one line, plain English. State what behavior is verified and why it matters (security, UX, data integrity). No `@test` tags, no multi-paragraph blocks.
+
+```php
+/** Role-based and grant-based permission checks that gate every protected route. */
+final class PermissionServiceTest extends TestCase
+{
+    /** Expired grants are ignored so time-limited access actually expires. */
+    public function test_expired_grant_does_not_apply(): void
+    {
+        // …
+    }
+}
+```
+
+**Naming:** methods must be `test_snake_case_description`. The UI strips the `test_` prefix for display.
+
+**When adding a test:** add both docblocks in the same PR. Missing docblocks = empty text in the status graph.
+
+**When adding a new test class:** class docblock summarises the whole suite (one sentence). File goes in `tests/Unit/` or `tests/Integration/` with `*Test.php` suffix.
 
 ## What to test per layer
 
@@ -80,6 +112,7 @@ Pass `$this->db` into services — do not use global `db()` in unit tests.
 2. New route mutation? → test service method + add row to `config/registry.php` `mutations`.
 3. New event type? → test `event_summary()` output + registry `events` list.
 4. New package? → `RegistryTest`-style assertion that manifest loads.
+5. **Always** add class + method docblocks (see above) so the status page documents the suite.
 
 ## Commands
 
@@ -91,7 +124,15 @@ composer format            # phpcbf auto-fix
 php scripts/check-coverage.php
 ```
 
-Admin → **System status** shows last run + coverage (local: can trigger run from UI).
+Admin → **System status** shows last run, suite graph, and descriptions from docblocks. Results come from `var/test-status.json` + `var/test-results.junit.xml` (written by `composer test` or **Run all tests** in local env). Tests do **not** run on page load.
+
+## Checklist (new or changed tests)
+
+- [ ] Behavioral assertion — fails if the protected behavior breaks
+- [ ] Class docblock — one-line suite summary
+- [ ] Method docblock on every `test_*` — what + why
+- [ ] `composer test` green
+- [ ] Registry/scripts updated if permissions, routes, or events changed
 
 ## Coverage goal
 
