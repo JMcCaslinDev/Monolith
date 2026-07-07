@@ -73,3 +73,40 @@ CREATE TABLE user_settings (
     PRIMARY KEY (user_id, setting_key),
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+
+CREATE TABLE tunnels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    slug TEXT NOT NULL,
+    token TEXT NOT NULL,
+    label TEXT,
+    local_port INTEGER NOT NULL DEFAULT 8000,
+    status TEXT NOT NULL DEFAULT 'pending',
+    expires_at TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    stopped_at TEXT,
+    UNIQUE (slug),
+    UNIQUE (token),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE tunnel_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tunnel_id INTEGER NOT NULL,
+    request_method TEXT NOT NULL,
+    request_path TEXT NOT NULL,
+    query_string TEXT,
+    request_headers TEXT,
+    request_body TEXT,
+    request_body_bytes INTEGER NOT NULL DEFAULT 0,
+    response_status INTEGER,
+    response_headers TEXT,
+    response_body TEXT,
+    response_body_bytes INTEGER NOT NULL DEFAULT 0,
+    duration_ms INTEGER,
+    client_ip TEXT,
+    forwarded INTEGER NOT NULL DEFAULT 0,
+    error_message TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tunnel_id) REFERENCES tunnels (id) ON DELETE CASCADE
+);
