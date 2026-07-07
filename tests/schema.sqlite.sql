@@ -139,3 +139,30 @@ CREATE TABLE cursor_share_votes (
     FOREIGN KEY (post_id) REFERENCES cursor_share_posts (id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+
+CREATE TABLE blog_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    excerpt TEXT,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    tags TEXT,
+    meta_title TEXT,
+    meta_description TEXT,
+    og_image_url TEXT,
+    views INTEGER NOT NULL DEFAULT 0,
+    published_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE blog_daily_views (
+    post_id INTEGER NOT NULL,
+    view_date TEXT NOT NULL,
+    views INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (post_id, view_date),
+    FOREIGN KEY (post_id) REFERENCES blog_posts (id) ON DELETE CASCADE
+);

@@ -145,4 +145,16 @@ final class BootstrapHelpersTest extends TestCase
         $this->assertStringContainsString('Ponytail', $summary);
         $this->assertStringContainsString('rules', $summary);
     }
+
+    /** Blog publish events show post title in the audit log. */
+    public function test_event_summary_blog_published(): void
+    {
+        $summary = event_summary([
+            'type' => 'blog.post.published',
+            'subject_id' => '7',
+            'payload' => json_encode(['title' => 'Launch day', 'slug' => 'launch-day']),
+        ]);
+        $this->assertStringContainsString('Launch day', $summary);
+        $this->assertStringContainsString('published', strtolower($summary));
+    }
 }

@@ -15,6 +15,21 @@
     })();
     </script>
     <title><?= htmlspecialchars($title ?? 'Monolith', ENT_QUOTES) ?></title>
+    <?php if (!empty($canonicalUrl)): ?>
+    <?php if (!empty($metaDescription)): ?>
+    <meta name="description" content="<?= htmlspecialchars((string) $metaDescription, ENT_QUOTES) ?>">
+    <meta property="og:description" content="<?= htmlspecialchars((string) $metaDescription, ENT_QUOTES) ?>">
+    <?php endif; ?>
+    <meta property="og:title" content="<?= htmlspecialchars((string) $title, ENT_QUOTES) ?>">
+    <meta property="og:type" content="article">
+    <?php if (!empty($ogImage)): ?>
+    <meta property="og:image" content="<?= htmlspecialchars((string) $ogImage, ENT_QUOTES) ?>">
+    <?php endif; ?>
+    <link rel="canonical" href="<?= htmlspecialchars((string) $canonicalUrl, ENT_QUOTES) ?>">
+    <meta name="robots" content="index, follow">
+    <?php elseif (!empty($noindex)): ?>
+    <meta name="robots" content="noindex, nofollow">
+    <?php endif; ?>
     <?php
     $manifestPath = dirname(__DIR__, 2) . '/public/build/.vite/manifest.json';
     $useBuild = is_file($manifestPath) && (config('app')['env'] ?? 'local') !== 'local';

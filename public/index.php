@@ -16,6 +16,18 @@ if (isset($routes[$key])) {
     return;
 }
 
+// ponytail: SEO-friendly public blog URLs (/blog/my-post-slug)
+if ($method === 'GET' && str_starts_with($path, '/blog/') && $path !== '/blog/sitemap.xml') {
+    $slug = substr($path, 6);
+    if ($slug !== '' && preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) {
+        $_GET['slug'] = $slug;
+        if (isset($routes['GET /blog/post'])) {
+            $routes['GET /blog/post']();
+            return;
+        }
+    }
+}
+
 http_response_code(404);
 $user = auth()->currentUser();
 if (should_record_page_event($path)) {
