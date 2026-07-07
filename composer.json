@@ -19,7 +19,8 @@
   "autoload": {
     "psr-4": {
       "App\\": "app/",
-      "Devtools\\": "packages/devtools/src/"
+      "Devtools\\": "packages/devtools/src/",
+      "Tunnels\\": "packages/tunnels/src/"
     }
   },
   "autoload-dev": {
