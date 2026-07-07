@@ -1,0 +1,10 @@
+/vendor/
+/node_modules/
+/public/build/
+.env
+.DS_Store
+*.log
+infra/node_modules/
+infra/Pulumi.*.yaml
+!infra/Pulumi.yaml
+!infra/Pulumi.prod.yaml.example
