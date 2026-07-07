@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php if (!empty($user)): ?>
     <meta name="csrf-token" content="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>">
+    <meta name="timezone-configured" content="<?= saved_user_timezone((int) $user['id']) ? '1' : '0' ?>">
     <?php endif; ?>
     <script>
     (function () {
@@ -16,7 +17,8 @@
     <title><?= htmlspecialchars($title ?? 'Monolith', ENT_QUOTES) ?></title>
     <?php
     $manifestPath = dirname(__DIR__, 2) . '/public/build/.vite/manifest.json';
-    if (is_file($manifestPath)):
+    $useBuild = is_file($manifestPath) && (config('app')['env'] ?? 'local') !== 'local';
+    if ($useBuild):
         $entry = json_decode(file_get_contents($manifestPath), true)['resources/js/app.js'] ?? [];
         $js = $entry['file'] ?? null;
         $cssFiles = $entry['css'] ?? [];
@@ -31,7 +33,7 @@
 </head>
 <body class="page-bg min-h-screen antialiased">
     <?php if (!empty($user)): require __DIR__ . '/partials/nav.php'; endif; ?>
-    <main class="mx-auto max-w-6xl px-6 py-8">
+    <main class="<?= !empty($fullWidth) ? 'px-0 py-0' : 'mx-auto max-w-6xl px-6 py-8' ?>">
         <?= $content ?? '' ?>
     </main>
 </body>

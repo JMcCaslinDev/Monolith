@@ -65,17 +65,23 @@ final class EventRecorder
     }
 
     /** @return list<array<string, mixed>> */
-    public function recent(int $limit = 100): array
+    public function recent(int $limit = 100, int $offset = 0): array
     {
         $stmt = $this->db->prepare(
             'SELECT e.*, u.email AS actor_email
              FROM events e
              LEFT JOIN users u ON u.id = e.actor_id
-             ORDER BY e.created_at DESC
-             LIMIT :limit'
+             ORDER BY e.created_at DESC, e.id DESC
+             LIMIT :limit OFFSET :offset'
         );
-        $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue('limit', max(1, $limit), PDO::PARAM_INT);
+        $stmt->bindValue('offset', max(0, $offset), PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
+    }
+
+    public function count(): int
+    {
+        return (int) $this->db->query('SELECT COUNT(*) FROM events')->fetchColumn();
     }
 }

@@ -1,8 +1,16 @@
-<?php ob_start(); ?>
+<?php ob_start();
+/** @var list<array<string, mixed>> $groups */
+/** @var int $page */
+/** @var int $perPage */
+/** @var int $total */
+/** @var int $totalPages */
+$from = $total === 0 ? 0 : (($page - 1) * $perPage) + 1;
+$to = min($page * $perPage, $total);
+?>
 <div class="mb-6">
     <a href="/admin" class="text-sm text-muted hover:text-slate-700 dark:hover:text-slate-300">← Admin</a>
     <h1 class="mt-2 text-2xl font-semibold">Audit log</h1>
-    <p class="mt-1 text-muted">Last 200 events — click a row for details. Related events from the same request are grouped.</p>
+    <p class="mt-1 text-muted">Newest first — <?= number_format($perPage) ?> events per page. Click a row for details; related events from the same request are grouped.</p>
 </div>
 
 <script type="application/json" id="audit-data"><?= json_encode($groups, JSON_THROW_ON_ERROR) ?></script>
@@ -33,7 +41,12 @@
                     $primary = $group['primary'];
                 ?>
                 <tr class="table-row-hover" @click="openAt(<?= (int) $idx ?>)">
-                    <td class="whitespace-nowrap px-4 py-3 text-muted"><?= htmlspecialchars((string) $primary['created_at'], ENT_QUOTES) ?></td>
+                    <td class="whitespace-nowrap px-4 py-3 text-muted">
+                        <div><?= htmlspecialchars((string) ($primary['created_at_display'] ?? $primary['created_at']), ENT_QUOTES) ?></div>
+                        <?php if (!empty($primary['created_at_ago'])): ?>
+                        <div class="text-xs"><?= htmlspecialchars((string) $primary['created_at_ago'], ENT_QUOTES) ?></div>
+                        <?php endif; ?>
+                    </td>
                     <td class="px-4 py-3 font-mono text-xs"><?= htmlspecialchars((string) $primary['type'], ENT_QUOTES) ?></td>
                     <td class="px-4 py-3 font-medium"><?= htmlspecialchars((string) $primary['summary'], ENT_QUOTES) ?></td>
                     <td class="px-4 py-3 text-muted"><?= htmlspecialchars((string) ($primary['actor_email'] ?? '—'), ENT_QUOTES) ?></td>
@@ -52,6 +65,27 @@
         </table>
     </div>
 
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
+        <p class="text-sm text-muted">
+            <?php if ($total === 0): ?>
+            No events
+            <?php else: ?>
+            Showing <?= number_format($from) ?>–<?= number_format($to) ?> of <?= number_format($total) ?> events
+            <?php endif; ?>
+        </p>
+        <?php if ($totalPages > 1): ?>
+        <div class="flex items-center gap-2 text-sm">
+            <?php if ($page > 1): ?>
+            <a href="?page=<?= $page - 1 ?>" class="rounded bg-slate-200 px-3 py-1.5 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700">Previous</a>
+            <?php endif; ?>
+            <span class="text-muted">Page <?= $page ?> of <?= $totalPages ?></span>
+            <?php if ($page < $totalPages): ?>
+            <a href="?page=<?= $page + 1 ?>" class="rounded bg-slate-200 px-3 py-1.5 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700">Next</a>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+
     <div
         x-show="modal"
         x-cloak
@@ -62,7 +96,8 @@
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h2 class="text-lg font-semibold" x-text="active?.primary?.summary"></h2>
-                    <p class="mt-1 text-sm text-muted" x-text="active?.primary?.type + ' · ' + active?.primary?.created_at"></p>
+                    <p class="mt-1 text-sm text-muted" x-text="active?.primary?.type + ' · ' + (active?.primary?.created_at_display ?? active?.primary?.created_at)"></p>
+                    <p class="text-xs text-muted" x-show="active?.primary?.created_at_ago" x-text="active?.primary?.created_at_ago"></p>
                 </div>
                 <button type="button" class="text-muted hover:text-slate-900 dark:hover:text-white" @click="close()">✕</button>
             </div>

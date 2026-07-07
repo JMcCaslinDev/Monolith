@@ -17,10 +17,14 @@ $routes = [
         $perms = permissions()->allForUser($uid);
         $openable = Registry::openableProjects($perms);
         $pinned = user_settings()->navbarProjectIds($uid, array_column($openable, 'id'));
+        $savedTz = saved_user_timezone($uid);
         view('profile', [
             'title' => 'Profile',
             'openableProjects' => $openable,
             'pinnedProjectIds' => $pinned,
+            'timezone' => $savedTz ?? default_timezone(),
+            'timezoneConfigured' => $savedTz !== null,
+            'timezoneOptions' => timezone_options(),
         ]);
     }, ['auth']),
 
@@ -57,6 +61,33 @@ $routes = [
         exit;
     }, ['auth'], recordPageView: false),
 
+    'POST /profile/timezone' => fn () => dispatch(function (): void {
+        verify_csrf();
+        $tz = trim((string) ($_POST['timezone'] ?? ''));
+        if (!is_valid_timezone($tz)) {
+            http_response_code(400);
+            exit('Invalid timezone');
+        }
+        $user = auth()->currentUser();
+        $uid = (int) $user['id'];
+        $auto = ($_POST['auto'] ?? '') === '1';
+        if ($auto && saved_user_timezone($uid) !== null) {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => true, 'skipped' => true]);
+            exit;
+        }
+        user_settings()->set($uid, 'timezone', $tz);
+        events()->record('settings.timezone.changed', $uid, 'user', (string) $uid, ['timezone' => $tz]);
+        $wantsJson = $auto || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
+        if ($wantsJson) {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => true]);
+            exit;
+        }
+        header('Location: /profile');
+        exit;
+    }, ['auth'], recordPageView: false),
+
     'GET /' => fn () => dispatch(function (): void {
         if (auth()->currentUser()) {
             middleware()->permission('pages.dashboard.view');
@@ -80,6 +111,15 @@ $routes = [
         if (isset($_POST['input_bytes'])) {
             $meta['input_bytes'] = max(0, (int) $_POST['input_bytes']);
         }
+        foreach (['field', 'category', 'tool', 'error'] as $key) {
+            if (!isset($_POST[$key]) || !is_string($_POST[$key])) {
+                continue;
+            }
+            $value = trim($_POST[$key]);
+            if ($value !== '' && strlen($value) <= 64 && preg_match('/^[a-z0-9._:-]+$/i', $value)) {
+                $meta[$key] = $value;
+            }
+        }
         $user = auth()->currentUser();
         events()->record('action.performed', (int) $user['id'], 'action', $action, $meta);
         header('Content-Type: application/json');
@@ -92,12 +132,27 @@ $routes = [
         view('admin/index', ['title' => 'Administration']);
     }, ['auth']),
 
+    'POST /admin/navbar' => fn () => dispatch(function (): void {
+        verify_csrf();
+        require_admin_hub();
+        $uid = (int) auth()->currentUser()['id'];
+        $visible = isset($_POST['visible']);
+        user_settings()->set($uid, 'navbar_admin', $visible);
+        events()->record('settings.navbar.changed', $uid, 'user', (string) $uid, [
+            'admin_visible' => $visible,
+        ]);
+        header('Location: /admin');
+        exit;
+    }, ['auth']),
+
     'GET /admin/status' => fn () => dispatch(function (): void {
         require_admin_hub();
+        $testTree = test_status()->readTree();
         view('admin/status', [
             'title' => 'System status',
-            'testStatus' => test_status()->read(),
-            'healthChecks' => test_status()->runHealthChecks(),
+            'testStatus' => $testTree['status'],
+            'testTree' => $testTree,
+            'healthChecks' => $_SESSION['health_checks'] ?? [],
             'canRunTests' => test_status()->canRunFromWeb(),
             'flash' => $_SESSION['status_flash'] ?? null,
         ]);
@@ -123,14 +178,27 @@ $routes = [
     'POST /admin/status/checks' => fn () => dispatch(function (): void {
         verify_csrf();
         require_admin_hub();
+        $_SESSION['health_checks'] = test_status()->runHealthChecks();
         header('Location: /admin/status');
         exit;
     }, ['auth'], recordPageView: false),
 
     'GET /admin/events' => fn () => dispatch(function (): void {
+        $perPage = 1000;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $total = events()->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+        $offset = ($page - 1) * $perPage;
         view('admin/events', [
             'title' => 'Audit log',
-            'groups' => group_events(events()->recent(200)),
+            'groups' => group_events(events()->recent($perPage, $offset)),
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'totalPages' => $totalPages,
         ]);
     }, ['auth', 'perm:admin.events.view']),
 
@@ -180,7 +248,7 @@ $routes = [
         }
         view('admin/permissions', [
             'title' => 'Permissions',
-            'permissions' => permissions()->allPermissions(),
+            'allPermissions' => permissions()->allPermissions(),
             'roles' => permissions()->allRoles(),
             'users' => $users,
             'selectedUserId' => $selectedUserId,

@@ -32,9 +32,10 @@ abstract class TestCase extends BaseTestCase
 
         $perms = [
             ['pages.dashboard.view', 'pages'],
-            ['tools.json-converter.use', 'tools'],
-            ['projects.tools.view', 'projects'],
-            ['projects.tools.open', 'projects'],
+            ['projects.devtools.view', 'projects'],
+            ['projects.devtools.open', 'projects'],
+            ['devtools.formatters.use', 'devtools.formatters'],
+            ['devtools.formatters.json.use', 'devtools.formatters'],
             ['admin.events.view', 'admin'],
             ['admin.users.manage', 'admin'],
             ['admin.permissions.manage', 'permissions'],
@@ -52,7 +53,7 @@ abstract class TestCase extends BaseTestCase
         $this->db->exec(
             'INSERT INTO role_permission (role_id, permission_id)
              SELECT r.id, p.id FROM roles r
-             JOIN permissions p ON p.name IN ("pages.dashboard.view", "tools.json-converter.use", "projects.tools.view", "projects.tools.open")
+             JOIN permissions p ON p.name IN ("pages.dashboard.view", "devtools.formatters.use", "devtools.formatters.json.use", "projects.devtools.view", "projects.devtools.open")
              WHERE r.name = "member"'
         );
 

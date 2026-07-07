@@ -28,7 +28,9 @@ $core = [
     ],
     'mutations' => [
         ['method' => 'POST', 'path' => '/profile/theme', 'permission' => null, 'event' => 'settings.theme.changed', 'note' => 'Auth only'],
+        ['method' => 'POST', 'path' => '/profile/timezone', 'permission' => null, 'event' => 'settings.timezone.changed', 'note' => 'Auth only'],
         ['method' => 'POST', 'path' => '/profile/navbar', 'permission' => null, 'event' => 'settings.navbar.changed', 'note' => 'Auth only'],
+        ['method' => 'POST', 'path' => '/admin/navbar', 'permission' => null, 'event' => 'settings.navbar.changed', 'note' => 'Auth + require_admin_hub'],
         ['method' => 'POST', 'path' => '/events/action', 'permission' => null, 'event' => 'action.performed', 'note' => 'Auth only; client actions'],
         ['method' => 'POST', 'path' => '/admin/permissions/role', 'permission' => 'admin.permissions.manage', 'event' => 'admin.role_permission.changed'],
         ['method' => 'POST', 'path' => '/admin/permissions/user/role', 'permission' => 'admin.permissions.manage', 'event' => 'admin.role.changed'],
@@ -45,6 +47,7 @@ $core = [
         ['type' => 'project.opened', 'automatic' => false, 'note' => 'User opened a project'],
         ['type' => 'settings.navbar.changed', 'automatic' => false, 'note' => 'Navbar project pins updated'],
         ['type' => 'settings.theme.changed', 'automatic' => false, 'note' => 'Profile theme POST'],
+        ['type' => 'settings.timezone.changed', 'automatic' => false, 'note' => 'Profile timezone POST'],
         ['type' => 'admin.role.changed', 'automatic' => false, 'note' => 'User role assignment'],
         ['type' => 'admin.role_permission.changed', 'automatic' => false, 'note' => 'Role permission toggle'],
         ['type' => 'admin.grant.added', 'automatic' => false, 'note' => 'User permission grant'],
@@ -59,7 +62,7 @@ $core = [
 return [
     'permissions' => array_merge($core['permissions'], Registry::packagePermissions()),
     'routes' => array_merge($core['routes'], Registry::packageRoutes()),
-    'mutations' => $core['mutations'],
+    'mutations' => array_merge($core['mutations'], Registry::packageMutations()),
     'events' => array_merge($core['events'], Registry::packageEvents()),
     'projects' => Registry::projects(),
 ];

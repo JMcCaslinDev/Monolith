@@ -1,5 +1,8 @@
 <?php ob_start();
 $rp = permissions()->rolePermissionMap();
+$allPermissions = isset($allPermissions) && is_array($allPermissions) && isset($allPermissions[0]['name'])
+    ? $allPermissions
+    : permissions()->allPermissions();
 ?>
 <div class="mb-6">
     <a href="/admin" class="text-sm text-muted hover:text-slate-700 dark:hover:text-slate-300">← Admin</a>
@@ -20,7 +23,7 @@ $rp = permissions()->rolePermissionMap();
             </tr>
         </thead>
         <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-            <?php foreach ($permissions as $perm): ?>
+            <?php foreach ($allPermissions as $perm): ?>
             <tr>
                 <td class="px-2 py-2">
                     <span class="font-mono text-xs"><?= htmlspecialchars($perm['name'], ENT_QUOTES) ?></span>

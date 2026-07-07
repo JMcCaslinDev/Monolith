@@ -50,6 +50,33 @@
     </section>
 </div>
 
+<section class="card mt-6 p-6">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-muted">Timezone</h2>
+    <p class="mt-2 text-sm text-muted">Times across Monolith display in this zone. Defaults to your browser timezone, otherwise Pacific.</p>
+    <form method="post" action="/profile/timezone" class="mt-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>">
+        <label class="min-w-[16rem] flex-1">
+            <span class="text-xs text-muted">Timezone</span>
+            <select name="timezone" class="input-field mt-1 w-full">
+                <?php
+                $options = $timezoneOptions ?? timezone_options();
+                $currentTz = $timezone ?? default_timezone();
+                if (!isset($options[$currentTz])) {
+                    $options = [$currentTz => $currentTz] + $options;
+                }
+                foreach ($options as $id => $label):
+                ?>
+                <option value="<?= htmlspecialchars($id, ENT_QUOTES) ?>" <?= $id === $currentTz ? 'selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <button type="submit" class="btn-primary">Save timezone</button>
+    </form>
+    <?php if (!($timezoneConfigured ?? false)): ?>
+    <p class="mt-2 text-xs text-muted">Using Pacific until your browser timezone is detected or you save a choice.</p>
+    <?php endif; ?>
+</section>
+
 <?php if (!empty($openableProjects)): ?>
 <section class="card mt-6 p-6">
     <h2 class="text-sm font-semibold uppercase tracking-wider text-muted">Navbar</h2>

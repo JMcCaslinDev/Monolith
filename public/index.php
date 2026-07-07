@@ -18,11 +18,13 @@ if (isset($routes[$key])) {
 
 http_response_code(404);
 $user = auth()->currentUser();
-events()->record(
-    'page.not_found',
-    $user ? (int) $user['id'] : null,
-    'page',
-    $path,
-    ['method' => $method],
-);
+if (should_record_page_event($path)) {
+    events()->record(
+        'page.not_found',
+        $user ? (int) $user['id'] : null,
+        'page',
+        $path,
+        ['method' => $method, 'path' => $path],
+    );
+}
 view('errors/404', ['title' => 'Not found']);
