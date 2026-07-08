@@ -25,8 +25,7 @@ $init = ['csrf' => $csrf, 'canManage' => $canManage, 'canPurchase' => $canPurcha
   <div class="max-w-4xl mx-auto space-y-6">
     <header class="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <a href="/" class="text-sm text-muted hover:text-slate-700 dark:hover:text-slate-300">← Dashboard</a>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">💰 Budget & Asset Tracker</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">💰 Budget & Asset Tracker</h1>
         <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">Your live financial snapshot — income, expenses, and net worth.</p>
       </div>
       <template x-if="summary && !showWizard">
@@ -73,7 +72,7 @@ $init = ['csrf' => $csrf, 'canManage' => $canManage, 'canPurchase' => $canPurcha
             class="budget-bubble p-6 text-left border-2 border-transparent hover:border-violet-400 bg-violet-50 dark:bg-violet-950/40 transition">
             <span class="text-3xl">👫</span>
             <p class="font-semibold mt-2 text-gray-900 dark:text-white">Me & partner</p>
-            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Separate incomes and expenses for each person.</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Separate incomes and expenses for each person. Savings and assets stay shared.</p>
           </button>
         </div>
 
@@ -215,7 +214,7 @@ $init = ['csrf' => $csrf, 'canManage' => $canManage, 'canPurchase' => $canPurcha
     <!-- Main dashboard -->
     <template x-if="!showWizard && !loading && summary">
       <div class="space-y-6">
-        <div class="flex flex-wrap gap-3">
+        <div class="flex flex-wrap gap-3 border-b border-gray-200 dark:border-gray-700 pb-6">
           <button type="button" @click="openBudget()"
             class="rounded-2xl px-5 py-3 text-sm font-semibold transition"
             :class="section === 'budget' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'">
@@ -339,6 +338,7 @@ $init = ['csrf' => $csrf, 'canManage' => $canManage, 'canPurchase' => $canPurcha
 
         <!-- Assets tab -->
         <div x-show="tab === 'assets'" class="budget-bubble bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 p-6 space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">Household savings and investments — one combined list, not split by person.</p>
           <div class="grid sm:grid-cols-2 gap-4">
             <div>
               <h3 class="font-semibold text-sky-700 dark:text-sky-300">Savings</h3>
@@ -385,32 +385,43 @@ $init = ['csrf' => $csrf, 'canManage' => $canManage, 'canPurchase' => $canPurcha
         <!-- Purchase calculator (separate section) -->
         <template x-if="section === 'afford' && canPurchase">
         <div class="budget-bubble bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 p-6 space-y-6">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Can I afford it?</h2>
-              <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">See what a purchase costs relative to your income — and what that money could grow into if invested instead.</p>
-            </div>
-            <button type="button" @click="openBudget()"
-              class="text-sm text-muted hover:text-slate-700 dark:hover:text-slate-300">← Back to budget</button>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Can I afford it?</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">See what a purchase costs relative to your income — and what that money could grow into if invested instead.</p>
           </div>
-          <form @submit.prevent="calculatePurchase()" class="flex flex-wrap gap-3 items-end">
-            <div>
-              <label class="text-sm text-gray-600 dark:text-gray-400">Purchase amount</label>
-              <input type="text" inputmode="decimal" autocomplete="off"
-                x-model="form.purchase.amount"
-                @focus="if (form.purchase.amount === '0' || form.purchase.amount === 0) form.purchase.amount = ''"
-                placeholder="$" class="input-field rounded-2xl px-4 py-3 w-40 mt-1">
+          <form @submit.prevent="calculatePurchase()" class="space-y-4">
+            <div class="flex flex-wrap gap-3 items-end">
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-400">Purchase amount</label>
+                <input type="text" inputmode="decimal" autocomplete="off"
+                  x-model="form.purchase.amount"
+                  @focus="if (form.purchase.amount === '0' || form.purchase.amount === 0) form.purchase.amount = ''"
+                  placeholder="$" class="input-field rounded-2xl px-4 py-3 w-40 mt-1">
+              </div>
+              <button type="submit" :disabled="saving" class="rounded-2xl bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 font-medium disabled:opacity-50">Calculate</button>
             </div>
-            <button type="submit" :disabled="saving" class="rounded-2xl bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 font-medium disabled:opacity-50">Calculate</button>
+            <fieldset class="space-y-2" x-show="people.length">
+              <legend class="text-sm font-medium text-gray-700 dark:text-gray-300">Factor in income from</legend>
+              <template x-for="p in people" :key="p.id">
+                <label class="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                  <input type="checkbox" class="rounded border-gray-300 dark:border-gray-600"
+                    :value="p.id" x-model="form.purchase.person_ids">
+                  <span x-text="p.name"></span>
+                  <span class="text-gray-500 dark:text-gray-400" x-text="fmt(personIncomeCents(p.id)) + '/mo'"></span>
+                </label>
+              </template>
+            </fieldset>
           </form>
 
           <template x-if="purchaseResult">
             <div class="space-y-6 border-t border-gray-200 dark:border-gray-700 pt-6">
               <p class="text-sm text-gray-600 dark:text-gray-400"
                 x-show="purchaseResult.share.monthly_income_cents > 0">
-                Based on your saved monthly income of
+                Based on monthly income of
                 <span class="font-medium text-gray-900 dark:text-gray-100" x-text="fmt(purchaseResult.share.monthly_income_cents)"></span>
-                (sum of all income sources). Assumes 40 hr/week →
+                from
+                <span class="font-medium text-gray-900 dark:text-gray-100" x-text="purchaseIncludedLabel()"></span>.
+                Assumes 40 hr/week →
                 <span class="font-medium text-gray-900 dark:text-gray-100" x-text="fmt(purchaseResult.share.assumed_hourly_cents)"></span>/hr
                 (monthly ÷ 160) and 8-hour work days.
               </p>

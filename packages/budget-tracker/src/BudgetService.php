@@ -244,7 +244,6 @@ final class BudgetService
         string $kind,
         string $name,
         int $balanceCents,
-        ?int $personId = null,
         ?int $accountId = null,
     ): array {
         $allowed = ['savings', 'brokerage', 'retirement', 'other'];
@@ -261,22 +260,16 @@ final class BudgetService
 
         $profile = $this->getOrCreateProfile($userId);
         $profileId = (int) $profile['id'];
-        if ($personId !== null && $personId > 0) {
-            $this->assertPersonOwned($userId, $personId);
-        } else {
-            $personId = null;
-        }
 
         if ($accountId !== null && $accountId > 0) {
             $stmt = $this->db->prepare(
-                'UPDATE budget_accounts SET kind = :kind, name = :name, balance_cents = :bal, person_id = :person
+                'UPDATE budget_accounts SET kind = :kind, name = :name, balance_cents = :bal, person_id = NULL
          WHERE id = :id AND profile_id = :pid',
             );
             $stmt->execute([
             'kind' => $kind,
             'name' => $name,
             'bal' => $balanceCents,
-            'person' => $personId,
             'id' => $accountId,
             'pid' => $profileId,
             ]);
@@ -289,11 +282,10 @@ final class BudgetService
 
         $stmt = $this->db->prepare(
             'INSERT INTO budget_accounts (profile_id, person_id, kind, name, balance_cents)
-       VALUES (:pid, :person, :kind, :name, :bal)',
+       VALUES (:pid, NULL, :kind, :name, :bal)',
         );
         $stmt->execute([
         'pid' => $profileId,
-        'person' => $personId,
         'kind' => $kind,
         'name' => $name,
         'bal' => $balanceCents,
@@ -316,14 +308,47 @@ final class BudgetService
         $this->db->prepare('DELETE FROM budget_accounts WHERE id = :id')->execute(['id' => $accountId]);
     }
 
-  /** @return array{share: array<string, mixed>, projections: list<array<string, mixed>>} */
-    public function calculatePurchase(int $userId, int $purchaseCents): array
+  /** @param list<int>|null $personIds When set, only these people's income counts; null = everyone. */
+  /** @return array{share: array<string, mixed>, included_people: list<array<string, mixed>>, projections: list<array<string, mixed>>} */
+    public function calculatePurchase(int $userId, int $purchaseCents, ?array $personIds = null): array
     {
         $state = $this->loadState($userId);
-        $monthlyIncome = (int) ($state['summary']['total_income_cents'] ?? 0);
+        $people = $state['people'];
+        $validIds = array_map(static fn (array $p): int => (int) $p['id'], $people);
+
+        if ($personIds === null) {
+            $personIds = $validIds;
+        } else {
+            $personIds = array_values(array_intersect(
+                array_map('intval', $personIds),
+                $validIds,
+            ));
+        }
+
+        if ($personIds === []) {
+            throw new RuntimeException('Select at least one person');
+        }
+
+        $incomeByPerson = FinanceCalculator::totalsByPerson($state['income']);
+        $monthlyIncome = 0;
+        $included = [];
+        foreach ($people as $person) {
+            $pid = (int) $person['id'];
+            if (!in_array($pid, $personIds, true)) {
+                continue;
+            }
+            $cents = $incomeByPerson[$pid] ?? 0;
+            $monthlyIncome += $cents;
+            $included[] = [
+                'person_id' => $pid,
+                'name' => (string) $person['name'],
+                'income_cents' => $cents,
+            ];
+        }
 
         return [
         'share' => FinanceCalculator::purchaseIncomeShare($purchaseCents, $monthlyIncome),
+        'included_people' => $included,
         'projections' => FinanceCalculator::investmentProjections($purchaseCents),
         ];
     }

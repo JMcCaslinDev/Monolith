@@ -48,7 +48,6 @@ $publicState = function (array $state): array {
         ], $state['expenses']),
         'accounts' => array_map(static fn (array $a): array => [
             'id' => (int) $a['id'],
-            'person_id' => $a['person_id'] !== null ? (int) $a['person_id'] : null,
             'kind' => $a['kind'],
             'name' => $a['name'],
             'balance_cents' => (int) $a['balance_cents'],
@@ -234,7 +233,6 @@ return [
         $accountId = (int) ($_POST['account_id'] ?? 0);
         $kind = trim((string) ($_POST['kind'] ?? 'savings'));
         $name = trim((string) ($_POST['name'] ?? ''));
-        $personId = (int) ($_POST['person_id'] ?? 0);
         $amountCents = $dollarsToCents((string) ($_POST['balance'] ?? '0'));
         if (isset($_POST['balance_cents']) && is_numeric($_POST['balance_cents'])) {
             $amountCents = (int) $_POST['balance_cents'];
@@ -246,7 +244,6 @@ return [
                 $kind,
                 $name,
                 $amountCents,
-                $personId > 0 ? $personId : null,
                 $accountId > 0 ? $accountId : null,
             );
         } catch (Throwable $e) {
@@ -291,11 +288,23 @@ return [
             $jsonResponse(['error' => 'Enter a purchase amount'], 400);
         }
 
-        $result = budget_tracker()->calculatePurchase($uid, $purchaseCents);
+        $personIds = null;
+        if (isset($_POST['person_ids'])) {
+            $raw = $_POST['person_ids'];
+            $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
+            $personIds = is_array($decoded) ? array_map('intval', $decoded) : [];
+        }
+
+        try {
+            $result = budget_tracker()->calculatePurchase($uid, $purchaseCents, $personIds);
+        } catch (Throwable $e) {
+            $jsonResponse(['error' => $e->getMessage()], 400);
+        }
 
         events()->record('budget-tracker.purchase.calculated', $uid, 'budget_purchase', (string) $purchaseCents, [
             'amount_cents' => $purchaseCents,
             'percent_of_annual' => $result['share']['percent_of_annual'] ?? 0,
+            'person_ids' => array_column($result['included_people'], 'person_id'),
         ]);
 
         $jsonResponse($result);

@@ -78,6 +78,30 @@ final class BudgetTrackerServiceTest extends TestCase
         $this->assertSame(2500000, $summary['net_worth_cents']);
     }
 
+    /** Partner mode keeps all accounts in one household list (no per-person split). */
+    public function test_accounts_are_household_level_in_partner_mode(): void
+    {
+        $svc = new BudgetService($this->db);
+        $userId = 1;
+        $svc->setupProfile($userId, 'partner', ['Alex', 'Jordan']);
+        $people = $svc->loadState($userId)['people'];
+        $p0 = (int) $people[0]['id'];
+        $p1 = (int) $people[1]['id'];
+
+        $svc->saveIncome($userId, $p0, 'Salary', 600000);
+        $svc->saveIncome($userId, $p1, 'Salary', 400000);
+        $svc->saveAccount($userId, 'savings', 'Joint checking', 100000);
+        $svc->saveAccount($userId, 'brokerage', 'Shared brokerage', 500000);
+
+        $state = $svc->loadState($userId);
+        $this->assertCount(2, $state['accounts']);
+        foreach ($state['accounts'] as $account) {
+            $this->assertNull($account['person_id']);
+        }
+        $this->assertSame(100000, $state['summary']['savings_cents']);
+        $this->assertSame(500000, $state['summary']['assets_cents']);
+    }
+
     /** Purchase calculator uses stored income for share and growth projections. */
     public function test_calculate_purchase_returns_share_and_projections(): void
     {
@@ -89,8 +113,30 @@ final class BudgetTrackerServiceTest extends TestCase
 
         $result = $svc->calculatePurchase($userId, 100000);
         $this->assertGreaterThan(0, $result['share']['percent_of_annual']);
+        $this->assertCount(1, $result['included_people']);
         $this->assertNotEmpty($result['projections']);
         $this->assertGreaterThan(100000, $result['projections'][2]['horizons'][2]['value_cents']);
+    }
+
+    /** Purchase calculator can limit income to selected people in partner mode. */
+    public function test_calculate_purchase_filters_by_person(): void
+    {
+        $svc = new BudgetService($this->db);
+        $userId = 1;
+        $svc->setupProfile($userId, 'partner', ['Alex', 'Jordan']);
+        $people = $svc->loadState($userId)['people'];
+        $p0 = (int) $people[0]['id'];
+        $p1 = (int) $people[1]['id'];
+        $svc->saveIncome($userId, $p0, 'Salary', 600000);
+        $svc->saveIncome($userId, $p1, 'Salary', 400000);
+
+        $all = $svc->calculatePurchase($userId, 100000);
+        $this->assertSame(1000000, $all['share']['monthly_income_cents']);
+
+        $one = $svc->calculatePurchase($userId, 100000, [$p0]);
+        $this->assertSame(600000, $one['share']['monthly_income_cents']);
+        $this->assertCount(1, $one['included_people']);
+        $this->assertSame('Alex', $one['included_people'][0]['name']);
     }
 
     /** Users cannot mutate another account's income rows. */

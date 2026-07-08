@@ -28,8 +28,8 @@ export function registerBudgetTracker(Alpine) {
       names: ['', ''],
       income: { person_id: 0, income_id: 0, label: '', amount: '' },
       expense: { person_id: 0, expense_id: 0, category: '', label: '', amount: '' },
-      account: { account_id: 0, kind: 'savings', name: '', balance: '', person_id: 0 },
-      purchase: { amount: '' },
+      account: { account_id: 0, kind: 'savings', name: '', balance: '' },
+      purchase: { amount: '', person_ids: [] },
     },
 
     purchaseResult: null,
@@ -87,6 +87,21 @@ export function registerBudgetTracker(Alpine) {
       this.form.mode = this.profile.mode || 'solo';
     }
     this.syncFormPersonIds();
+    this.syncPurchasePersonIds();
+  },
+
+  syncPurchasePersonIds() {
+    if (!this.people.length) {
+      this.form.purchase.person_ids = [];
+      return;
+    }
+    const valid = new Set(this.people.map((p) => Number(p.id)));
+    const kept = this.form.purchase.person_ids
+      .map(Number)
+      .filter((id) => valid.has(id));
+    this.form.purchase.person_ids = kept.length
+      ? kept
+      : this.people.map((p) => Number(p.id));
   },
 
   syncFormPersonIds() {
@@ -191,6 +206,17 @@ export function registerBudgetTracker(Alpine) {
 
   incomeForPerson(personId) {
     return this.income.filter((i) => i.person_id === personId);
+  },
+
+  personIncomeCents(personId) {
+    return this.incomeForPerson(personId).reduce((sum, row) => sum + row.amount_cents, 0);
+  },
+
+  purchaseIncludedLabel() {
+    if (!this.purchaseResult?.included_people?.length) return '';
+    return this.purchaseResult.included_people
+      .map((p) => `${p.name} (${this.fmt(p.income_cents)})`)
+      .join(', ');
   },
 
   expensesForPerson(personId) {
@@ -424,10 +450,9 @@ export function registerBudgetTracker(Alpine) {
         kind: f.kind,
         name: f.name,
         balance: f.balance,
-        person_id: String(f.person_id || 0),
       });
       this.applyState(data);
-      this.form.account = { account_id: 0, kind, name: '', balance: '', person_id: 0 };
+      this.form.account = { account_id: 0, kind, name: '', balance: '' };
     } catch (e) {
       this.error = e.message;
     } finally {
@@ -497,12 +522,17 @@ export function registerBudgetTracker(Alpine) {
       this.error = 'Enter a purchase amount';
       return;
     }
+    if (!this.form.purchase.person_ids.length) {
+      this.error = 'Select at least one person';
+      return;
+    }
     this.saving = true;
     this.error = '';
     this.purchaseResult = null;
     try {
       const data = await this.post('/projects/budget-tracker/purchase/calculate', {
         amount: this.form.purchase.amount,
+        person_ids: JSON.stringify(this.form.purchase.person_ids.map(Number)),
       });
       this.purchaseResult = data;
     } catch (e) {

@@ -1,8 +1,4 @@
 <?php ob_start(); ?>
-<div class="mb-8">
-    <h1 class="text-2xl font-semibold">Dashboard</h1>
-    <p class="mt-1 text-muted">Welcome back, <?= htmlspecialchars($user['name'] ?? $user['email'], ENT_QUOTES) ?>.</p>
-</div>
 
 <?php if (!empty($visibleProjects)): ?>
 <section>

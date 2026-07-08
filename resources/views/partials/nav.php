@@ -7,7 +7,6 @@ $initials = strtoupper(substr($user['name'] ?? $user['email'], 0, 1));
         <div class="flex items-center gap-8">
             <a href="/" class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Monolith</a>
             <nav class="hidden items-center gap-1 sm:flex">
-                <a href="/" class="nav-link">Dashboard</a>
                 <?php foreach ($navbarProjects ?? [] as $project): ?>
                     <a href="<?= htmlspecialchars($project['path'], ENT_QUOTES) ?>" class="nav-link"><?= htmlspecialchars($project['name'], ENT_QUOTES) ?></a>
                 <?php endforeach; ?>
