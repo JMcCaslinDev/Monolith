@@ -97,6 +97,20 @@ final class EventRecorder
         return $stmt->fetchAll();
     }
 
+    /** Deletes audit rows older than the retention window. Returns the number removed. */
+    public function prune(int $retentionDays, ?\DateTimeImmutable $now = null): int
+    {
+        if ($retentionDays < 1) {
+            throw new \InvalidArgumentException('Retention must be at least 1 day');
+        }
+        $cutoff = ($now ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
+            ->modify("-{$retentionDays} days")
+            ->format('Y-m-d H:i:s');
+        $stmt = $this->db->prepare('DELETE FROM events WHERE created_at < :cutoff');
+        $stmt->execute(['cutoff' => $cutoff]);
+        return $stmt->rowCount();
+    }
+
     public function count(): int
     {
         return (int) $this->db->query('SELECT COUNT(*) FROM events')->fetchColumn();

@@ -74,4 +74,26 @@ final class EventRecorderTest extends TestCase
         $this->assertSame('10.0.0.5', EventRecorder::clientIp($server, true));
         $this->assertNull(EventRecorder::clientIp([], true));
     }
+
+    /** Retention pruning removes only rows older than the window and keeps recent audit history. */
+    public function test_prune_removes_only_expired_events(): void
+    {
+        $events = new EventRecorder($this->db);
+        $events->record('old.event', 1);
+        $events->record('new.event', 1);
+        $this->db->exec("UPDATE events SET created_at = '2020-01-01 00:00:00' WHERE type = 'old.event'");
+
+        $removed = $events->prune(90, new \DateTimeImmutable('2026-01-01 00:00:00', new \DateTimeZone('UTC')));
+
+        $this->assertSame(1, $removed);
+        $types = array_column($this->db->query('SELECT type FROM events')->fetchAll(), 'type');
+        $this->assertSame(['new.event'], $types);
+    }
+
+    /** A zero or negative window is refused so a misconfigured env cannot wipe the whole log. */
+    public function test_prune_rejects_non_positive_retention(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new EventRecorder($this->db))->prune(0);
+    }
 }
