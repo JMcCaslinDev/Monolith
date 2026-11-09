@@ -58,4 +58,20 @@ final class EventRecorderTest extends TestCase
         $this->assertSame('3', $page2[0]['subject_id']);
         $this->assertSame('2', $page2[1]['subject_id']);
     }
+
+    /** Behind the ALB the audit log records the real client, taking the last (proxy-appended) forwarded entry. */
+    public function test_client_ip_uses_last_forwarded_entry_only_when_proxy_trusted(): void
+    {
+        $server = ['REMOTE_ADDR' => '10.0.0.5', 'HTTP_X_FORWARDED_FOR' => '6.6.6.6, 203.0.113.9'];
+        $this->assertSame('203.0.113.9', EventRecorder::clientIp($server, true));
+        $this->assertSame('10.0.0.5', EventRecorder::clientIp($server, false));
+    }
+
+    /** A malformed forwarded header falls back to the socket address. */
+    public function test_client_ip_ignores_invalid_forwarded_value(): void
+    {
+        $server = ['REMOTE_ADDR' => '10.0.0.5', 'HTTP_X_FORWARDED_FOR' => 'not-an-ip'];
+        $this->assertSame('10.0.0.5', EventRecorder::clientIp($server, true));
+        $this->assertNull(EventRecorder::clientIp([], true));
+    }
 }
