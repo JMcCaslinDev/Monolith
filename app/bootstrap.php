@@ -208,6 +208,26 @@ function require_admin_hub(): void
     exit;
 }
 
+/** @param array<string, mixed> $actor */
+function change_user_role(array $actor, int $userId, string $role, string $via): void
+{
+    $actorId = (int) $actor['id'];
+    $error = permissions()->changeRole($actorId, $userId, $role);
+    if ($error !== null) {
+        events()->record('admin.role.change_denied', $actorId, 'user', (string) $userId, [
+            'role' => $role,
+            'via' => $via,
+            'reason' => $error,
+        ]);
+        http_response_code(403);
+        exit($error);
+    }
+    events()->record('admin.role.changed', $actorId, 'user', (string) $userId, [
+        'role' => $role,
+        'via' => $via,
+    ]);
+}
+
 /** @param list<string> $permissions */
 /** @return list<array<string, mixed>> */
 function navbar_projects_for_user(int $userId, array $permissions): array
@@ -507,6 +527,12 @@ function event_summary(array $event): string
             'Role → %s for user #%s',
             $payload['role'] ?? '?',
             $event['subject_id'] ?? '?'
+        ),
+        'admin.role.change_denied' => sprintf(
+            'Role change to %s for user #%s denied: %s',
+            $payload['role'] ?? '?',
+            $event['subject_id'] ?? '?',
+            $payload['reason'] ?? 'policy'
         ),
         'admin.role_permission.changed' => ($payload['enabled'] ?? false ? 'Granted ' : 'Revoked ')
             . ($payload['permission'] ?? '?') . ' on ' . ($event['subject_id'] ?? 'role'),

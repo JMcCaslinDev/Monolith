@@ -30,6 +30,7 @@ Plus type-specific fields below. `subject_type` + `subject_id` columns duplicate
 | `action.performed` | JSON: format (128 bytes) | `action`, optional `input_bytes` |
 | `settings.theme.changed` | Theme → dark | `theme` |
 | `auth.login` | Signed in | `email` |
+| `admin.role.change_denied` | Role change to owner for user #2 denied: Only an owner can grant or remove the owner role. | `role`, `via`, `reason` |
 | `admin.role.changed` | Role → member for user #2 | `role`, `via` |
 | `admin.role_permission.changed` | Granted admin.events.view on admin | `permission`, `enabled` |
 | `admin.grant.added` | Grant tools.json-converter.use → user #2 | `permission` |

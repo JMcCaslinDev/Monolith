@@ -49,6 +49,7 @@ $core = [
         ['type' => 'settings.theme.changed', 'automatic' => false, 'note' => 'Profile theme POST'],
         ['type' => 'settings.timezone.changed', 'automatic' => false, 'note' => 'Profile timezone POST'],
         ['type' => 'admin.role.changed', 'automatic' => false, 'note' => 'User role assignment'],
+        ['type' => 'admin.role.change_denied', 'automatic' => false, 'note' => 'Role change refused by owner/last-owner/self policy'],
         ['type' => 'admin.role_permission.changed', 'automatic' => false, 'note' => 'Role permission toggle'],
         ['type' => 'admin.grant.added', 'automatic' => false, 'note' => 'User permission grant'],
         ['type' => 'admin.grant.removed', 'automatic' => false, 'note' => 'User grant revoked'],

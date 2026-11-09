@@ -287,11 +287,7 @@ $routes = [
             http_response_code(400);
             exit('Invalid input');
         }
-        permissions()->setRole($userId, $role);
-        events()->record('admin.role.changed', (int) $actor['id'], 'user', (string) $userId, [
-            'role' => $role,
-            'via' => 'permissions_page',
-        ]);
+        change_user_role($actor, $userId, $role, 'permissions_page');
         header('Location: /admin/permissions?user_id=' . $userId);
         exit;
     }, ['auth', 'perm:admin.permissions.manage']),
@@ -339,11 +335,7 @@ $routes = [
             http_response_code(400);
             exit('Invalid input');
         }
-        permissions()->setRole($userId, $role);
-        events()->record('admin.role.changed', (int) $actor['id'], 'user', (string) $userId, [
-            'role' => $role,
-            'via' => 'users_page',
-        ]);
+        change_user_role($actor, $userId, $role, 'users_page');
         header('Location: /admin/users');
         exit;
     }, ['auth', 'perm:admin.users.manage']),
