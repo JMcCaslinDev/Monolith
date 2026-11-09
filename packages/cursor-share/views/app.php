@@ -124,7 +124,7 @@ $init = [
                                 <span x-text="categoryLabel(selected.category)"></span>
                                 · <span x-text="selected.filename"></span>
                                 <template x-if="selected.version"><span x-text="' · v' + selected.version"></span></template>
-                                · by <span x-text="selected.author_name || selected.author_email"></span>
+                                · by <span x-text="selected.author_name || 'a member'"></span>
                             </p>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mt-2" x-text="selected.description || ''"></p>
                         </header>

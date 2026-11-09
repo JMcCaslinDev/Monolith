@@ -98,4 +98,16 @@ final class ShareServiceTest extends TestCase
         $top = $this->share->topForCategory('rules', 10);
         $this->assertCount(10, $top);
     }
+
+    /** Author emails never leave the service, so browse permission cannot harvest member addresses. */
+    public function test_posts_do_not_expose_author_email(): void
+    {
+        $userId = $this->insertMember('secret@test.com');
+        $post = $this->share->create($userId, 'rules', 'Rule', 'd', 'rule.mdc', '1.0', "# Rule\nBody", []);
+
+        $this->assertArrayNotHasKey('author_email', $this->share->find((int) $post['id'], true));
+        $this->assertArrayNotHasKey('author_email', $this->share->findForOwner($userId, (int) $post['id']));
+        $this->assertArrayNotHasKey('author_email', $this->share->list(['category' => 'rules'])[0]);
+        $this->assertStringNotContainsString('secret@test.com', json_encode($this->share->list(['category' => 'rules'])));
+    }
 }

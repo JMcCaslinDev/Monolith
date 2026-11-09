@@ -51,7 +51,6 @@ $publicPost = function (array $post, int $userVote = 0, bool $withContent = fals
         'created_at' => $post['created_at'],
         'updated_at' => $post['updated_at'],
         'author_name' => $post['author_name'] ?? null,
-        'author_email' => $post['author_email'] ?? null,
         'user_vote' => $userVote,
     ];
     if ($withContent && isset($post['content'])) {
