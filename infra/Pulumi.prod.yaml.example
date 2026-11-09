@@ -15,6 +15,18 @@ config:
   monolith:dbPassword:
     description: MariaDB password
     secret: true
+  monolith:certificateArn:
+    description: ACM certificate ARN. When set, ALB serves HTTPS and redirects HTTP to HTTPS (optional until a domain exists)
+  monolith:auth0Domain:
+    description: Auth0 tenant domain
+  monolith:auth0ClientId:
+    description: Auth0 application client id
+  monolith:auth0ClientSecret:
+    description: Auth0 application client secret (stored in Secrets Manager)
+    secret: true
+  monolith:auth0CookieSecret:
+    description: Random 32+ byte secret for the Auth0 session cookie (stored in Secrets Manager)
+    secret: true
   monolith:imageTag:
     description: Docker image tag to deploy
     default: latest
