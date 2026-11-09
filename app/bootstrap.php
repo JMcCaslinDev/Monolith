@@ -12,7 +12,6 @@ use App\Services\UserSettingsService;
 use Dotenv\Dotenv;
 use BudgetTracker\BudgetService;
 use CursorShare\ShareService;
-use Tunnels\TunnelService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -79,12 +78,6 @@ function permissions(): PermissionService
     return $p ??= new PermissionService(db());
 }
 
-function tunnels(): TunnelService
-{
-    static $t = null;
-    return $t ??= new TunnelService(db());
-}
-
 function cursor_share(): ShareService
 {
     static $s = null;
@@ -101,47 +94,6 @@ function stickies(): Stickies\StickyService
 {
     static $s = null;
     return $s ??= new Stickies\StickyService(db());
-}
-
-function tunnel_hub_url(): string
-{
-    return rtrim($_ENV['TUNNEL_HUB_URL'] ?? 'http://localhost:8787', '/');
-}
-
-function tunnel_hub_secret(): string
-{
-    return (string) ($_ENV['TUNNEL_HUB_SECRET'] ?? 'local-tunnel-dev-secret');
-}
-
-function verify_tunnel_hub_secret(): void
-{
-    $given = (string) ($_SERVER['HTTP_X_TUNNEL_HUB_SECRET'] ?? '');
-    if ($given === '' || !hash_equals(tunnel_hub_secret(), $given)) {
-        http_response_code(403);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Forbidden']);
-        exit;
-    }
-}
-
-function tunnel_client_script_url(): string
-{
-    return config('app')['url'] . '/tunnel-client.mjs';
-}
-
-function tunnel_client_download_command(): string
-{
-    return sprintf('curl -fsSL %s -o tunnel-client.mjs', tunnel_client_script_url());
-}
-
-function tunnel_client_command(string $token, int $port): string
-{
-    return sprintf(
-        'node tunnel-client.mjs --token %s --port %d --hub %s',
-        $token,
-        $port,
-        tunnel_hub_url()
-    );
 }
 
 function user_settings(): UserSettingsService
@@ -562,9 +514,6 @@ function event_summary(array $event): string
         'admin.grant.removed' => 'Revoke ' . ($payload['permission'] ?? '?') . ' from user #' . ($event['subject_id'] ?? '?'),
         'project.opened' => 'Opened project ' . ($payload['project'] ?? $event['subject_id'] ?? '?'),
         'settings.navbar.changed' => 'Navbar pins updated',
-        'tunnels.tunnel.created' => 'Tunnel created: ' . ($payload['slug'] ?? $event['subject_id'] ?? '?'),
-        'tunnels.tunnel.stopped' => 'Tunnel stopped: ' . ($payload['slug'] ?? $event['subject_id'] ?? '?'),
-        'tunnels.tunnel.connected' => 'Tunnel client connected: ' . ($payload['slug'] ?? '?'),
         'cursor-share.post.created' => 'Cursor Share: published '
             . ($payload['title'] ?? $event['subject_id'] ?? '?')
             . ' [' . ($payload['category'] ?? '?') . ']',

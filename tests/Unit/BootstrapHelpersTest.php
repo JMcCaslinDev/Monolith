@@ -180,18 +180,6 @@ final class BootstrapHelpersTest extends TestCase
         $this->assertFalse(should_record_page_event('/health'));
     }
 
-    /** Tunnel client download command points at the served script URL for curl on any machine. */
-    public function test_tunnel_client_download_command_uses_app_url(): void
-    {
-        $_ENV['APP_URL'] = 'https://monolith.example.com';
-        $this->assertSame(
-            'curl -fsSL https://monolith.example.com/tunnel-client.mjs -o tunnel-client.mjs',
-            tunnel_client_download_command()
-        );
-        $this->assertStringStartsWith('node tunnel-client.mjs --token ', tunnel_client_command('abc123', 3000));
-        $this->assertStringContainsString('--hub', tunnel_client_command('abc123', 3000));
-    }
-
     /** Cursor Share publish events show title and category in the audit log. */
     public function test_event_summary_cursor_share_created(): void
     {

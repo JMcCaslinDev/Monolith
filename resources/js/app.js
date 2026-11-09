@@ -3,7 +3,6 @@ import Alpine from 'alpinejs';
 import { registerBudgetTracker } from './budget-tracker.js';
 import { registerCursorShare } from './cursor-share.js';
 import { registerDevtools } from './devtools.js';
-import { registerTunnels } from './tunnels.js';
 import { registerStickies } from './stickies.js';
 
 const STORAGE_KEY = 'monolith-theme';
@@ -70,7 +69,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 });
 
 registerDevtools(Alpine);
-registerTunnels(Alpine);
 registerCursorShare(Alpine);
 registerBudgetTracker(Alpine);
 registerStickies(Alpine);
