@@ -366,7 +366,10 @@ $routes = [
         } catch (Throwable) {
             // ponytail: health reports status, does not throw
         }
-        echo json_encode(['status' => 'ok', 'database' => $dbOk ? 'connected' : 'unavailable']);
+        if (!$dbOk) {
+            http_response_code(503);
+        }
+        echo json_encode(['status' => $dbOk ? 'ok' : 'degraded', 'database' => $dbOk ? 'connected' : 'unavailable']);
     }, recordPageView: false),
 ];
 
