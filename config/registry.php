@@ -36,8 +36,8 @@ $core = [
         ['method' => 'POST', 'path' => '/admin/permissions/user/role', 'permission' => 'admin.permissions.manage', 'event' => 'admin.role.changed'],
         ['method' => 'POST', 'path' => '/admin/permissions/grant', 'permission' => 'admin.permissions.manage', 'event' => 'admin.grant.added'],
         ['method' => 'POST', 'path' => '/admin/permissions/grant/revoke', 'permission' => 'admin.permissions.manage', 'event' => 'admin.grant.removed'],
-        ['method' => 'POST', 'path' => '/admin/status/run', 'permission' => 'admin.hub', 'event' => 'admin.status.tests_run', 'note' => 'Executes the test suite; local env only'],
-        ['method' => 'POST', 'path' => '/admin/status/checks', 'permission' => 'admin.hub', 'event' => 'admin.status.checks_run', 'note' => 'Executes check scripts'],
+        ['method' => 'POST', 'path' => '/admin/status/run', 'permission' => null, 'event' => 'admin.status.tests_run', 'note' => 'Executes the test suite; local env only; gated by require_admin_hub'],
+        ['method' => 'POST', 'path' => '/admin/status/checks', 'permission' => null, 'event' => 'admin.status.checks_run', 'note' => 'Executes check scripts; gated by require_admin_hub'],
         ['method' => 'POST', 'path' => '/admin/users/role', 'permission' => 'admin.users.manage', 'event' => 'admin.role.changed'],
     ],
     'events' => [
