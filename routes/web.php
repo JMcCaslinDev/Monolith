@@ -165,11 +165,14 @@ $routes = [
     'POST /admin/status/run' => fn () => dispatch(function (): void {
         verify_csrf();
         require_admin_hub();
+        $actorId = (int) auth()->currentUser()['id'];
         if (!test_status()->canRunFromWeb()) {
+            events()->record('admin.status.tests_run', $actorId, 'admin', 'tests', ['refused' => true]);
             http_response_code(403);
             exit('Tests can only run in local environment');
         }
         $code = test_status()->run();
+        events()->record('admin.status.tests_run', $actorId, 'admin', 'tests', ['exit_code' => $code]);
         $_SESSION['status_flash'] = [
             'ok' => $code === 0,
             'message' => $code === 0 ? 'All tests passed.' : 'Tests failed — see results below.',
@@ -181,7 +184,11 @@ $routes = [
     'POST /admin/status/checks' => fn () => dispatch(function (): void {
         verify_csrf();
         require_admin_hub();
-        $_SESSION['health_checks'] = test_status()->runHealthChecks();
+        $checks = test_status()->runHealthChecks();
+        $_SESSION['health_checks'] = $checks;
+        events()->record('admin.status.checks_run', (int) auth()->currentUser()['id'], 'admin', 'checks', [
+            'failed' => count(array_filter($checks, fn (array $c) => !$c['ok'])),
+        ]);
         header('Location: /admin/status');
         exit;
     }, ['auth'], recordPageView: false),

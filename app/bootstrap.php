@@ -552,6 +552,10 @@ function event_summary(array $event): string
             $event['subject_id'] ?? '?',
             $payload['reason'] ?? 'policy'
         ),
+        'admin.status.tests_run' => ($payload['refused'] ?? false)
+            ? 'Test run refused (not local env)'
+            : 'Ran test suite (exit ' . ($payload['exit_code'] ?? '?') . ')',
+        'admin.status.checks_run' => 'Ran health checks (' . ($payload['failed'] ?? '?') . ' failed)',
         'admin.role_permission.changed' => ($payload['enabled'] ?? false ? 'Granted ' : 'Revoked ')
             . ($payload['permission'] ?? '?') . ' on ' . ($event['subject_id'] ?? 'role'),
         'admin.grant.added' => 'Grant ' . ($payload['permission'] ?? '?') . ' → user #' . ($event['subject_id'] ?? '?'),

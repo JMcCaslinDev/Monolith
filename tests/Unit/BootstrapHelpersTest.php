@@ -191,4 +191,12 @@ final class BootstrapHelpersTest extends TestCase
         $this->assertStringContainsString('Ponytail', $summary);
         $this->assertStringContainsString('rules', $summary);
     }
+
+    /** Admin status actions that execute scripts have readable audit summaries. */
+    public function test_event_summary_for_admin_status_runs(): void
+    {
+        $this->assertSame('Ran test suite (exit 0)', event_summary(['type' => 'admin.status.tests_run', 'payload' => ['exit_code' => 0]]));
+        $this->assertStringContainsString('refused', event_summary(['type' => 'admin.status.tests_run', 'payload' => ['refused' => true]]));
+        $this->assertSame('Ran health checks (1 failed)', event_summary(['type' => 'admin.status.checks_run', 'payload' => ['failed' => 1]]));
+    }
 }

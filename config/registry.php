@@ -36,6 +36,8 @@ $core = [
         ['method' => 'POST', 'path' => '/admin/permissions/user/role', 'permission' => 'admin.permissions.manage', 'event' => 'admin.role.changed'],
         ['method' => 'POST', 'path' => '/admin/permissions/grant', 'permission' => 'admin.permissions.manage', 'event' => 'admin.grant.added'],
         ['method' => 'POST', 'path' => '/admin/permissions/grant/revoke', 'permission' => 'admin.permissions.manage', 'event' => 'admin.grant.removed'],
+        ['method' => 'POST', 'path' => '/admin/status/run', 'permission' => 'admin.hub', 'event' => 'admin.status.tests_run', 'note' => 'Executes the test suite; local env only'],
+        ['method' => 'POST', 'path' => '/admin/status/checks', 'permission' => 'admin.hub', 'event' => 'admin.status.checks_run', 'note' => 'Executes check scripts'],
         ['method' => 'POST', 'path' => '/admin/users/role', 'permission' => 'admin.users.manage', 'event' => 'admin.role.changed'],
     ],
     'events' => [
@@ -53,6 +55,8 @@ $core = [
         ['type' => 'admin.role_permission.changed', 'automatic' => false, 'note' => 'Role permission toggle'],
         ['type' => 'admin.grant.added', 'automatic' => false, 'note' => 'User permission grant'],
         ['type' => 'admin.grant.removed', 'automatic' => false, 'note' => 'User grant revoked'],
+        ['type' => 'admin.status.tests_run', 'automatic' => false, 'note' => 'Admin ran or tried to run the test suite'],
+        ['type' => 'admin.status.checks_run', 'automatic' => false, 'note' => 'Admin ran health check scripts'],
         ['type' => 'auth.login', 'automatic' => false, 'note' => 'Auth0 callback success'],
         ['type' => 'auth.logout', 'automatic' => false, 'note' => 'Logout'],
         ['type' => 'auth.login.started', 'automatic' => false, 'note' => 'Login redirect'],

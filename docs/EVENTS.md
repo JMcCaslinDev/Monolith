@@ -31,6 +31,8 @@ Plus type-specific fields below. `subject_type` + `subject_id` columns duplicate
 | `settings.theme.changed` | Theme → dark | `theme` |
 | `auth.login` | Signed in | `email` |
 | `admin.role.change_denied` | Role change to owner for user #2 denied: Only an owner can grant or remove the owner role. | `role`, `via`, `reason` |
+| `admin.status.tests_run` | Ran test suite (exit 0) | `exit_code` or `refused` |
+| `admin.status.checks_run` | Ran health checks (0 failed) | `failed` |
 | `admin.role.changed` | Role → member for user #2 | `role`, `via` |
 | `admin.role_permission.changed` | Granted admin.events.view on admin | `permission`, `enabled` |
 | `admin.grant.added` | Grant tools.json-converter.use → user #2 | `permission` |
