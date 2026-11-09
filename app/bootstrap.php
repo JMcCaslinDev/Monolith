@@ -361,6 +361,13 @@ function verify_csrf(): void
     }
 }
 
+/** Client-reported audit actions are limited to the shapes the shipped JS emits. */
+function is_known_client_action(string $action): bool
+{
+    return $action === 'settings.theme'
+        || preg_match('/^devtools\.[a-z0-9-]{1,48}\.[a-z0-9._-]{1,64}$/', $action) === 1;
+}
+
 /** @param array<string, mixed> $event */
 function event_payload(array $event): array
 {

@@ -106,9 +106,14 @@ $routes = [
     'POST /events/action' => fn () => dispatch(function (): void {
         verify_csrf();
         $action = trim((string) ($_POST['action'] ?? ''));
-        if ($action === '' || strlen($action) > 128 || !preg_match('/^[a-z0-9._-]+$/i', $action)) {
+        if (!is_known_client_action($action)) {
             http_response_code(400);
             exit('Invalid action');
+        }
+        $actor = auth()->currentUser();
+        if (str_starts_with($action, 'devtools.') && !permissions()->can((int) $actor['id'], 'projects.devtools.open')) {
+            http_response_code(403);
+            exit('Forbidden');
         }
         $meta = ['action' => $action];
         if (isset($_POST['input_bytes'])) {
@@ -123,7 +128,7 @@ $routes = [
                 $meta[$key] = $value;
             }
         }
-        $user = auth()->currentUser();
+        $user = $actor;
         events()->record('action.performed', (int) $user['id'], 'action', $action, $meta);
         header('Content-Type: application/json');
         echo json_encode(['ok' => true]);

@@ -199,4 +199,17 @@ final class BootstrapHelpersTest extends TestCase
         $this->assertStringContainsString('refused', event_summary(['type' => 'admin.status.tests_run', 'payload' => ['refused' => true]]));
         $this->assertSame('Ran health checks (1 failed)', event_summary(['type' => 'admin.status.checks_run', 'payload' => ['failed' => 1]]));
     }
+
+    /** Clients can only log the action shapes the UI emits, not arbitrary audit strings. */
+    public function test_client_action_allowlist(): void
+    {
+        $this->assertTrue(is_known_client_action('settings.theme'));
+        $this->assertTrue(is_known_client_action('devtools.json-formatter.page.load'));
+        $this->assertTrue(is_known_client_action('devtools.sidebar.category.open'));
+        $this->assertFalse(is_known_client_action('admin.role.changed'));
+        $this->assertFalse(is_known_client_action('auth.login'));
+        $this->assertFalse(is_known_client_action('totally.made.up'));
+        $this->assertFalse(is_known_client_action('devtools.'));
+        $this->assertFalse(is_known_client_action(''));
+    }
 }
