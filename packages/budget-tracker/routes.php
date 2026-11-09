@@ -97,7 +97,8 @@ return [
         try {
             budget_tracker()->setupProfile($uid, $mode, $names);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.profile.updated', $uid, 'budget_profile', (string) $uid, [
@@ -116,7 +117,8 @@ return [
         try {
             budget_tracker()->completeOnboarding($uid);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.onboarding.completed', $uid, 'budget_profile', (string) $uid, []);
@@ -145,7 +147,8 @@ return [
                 $incomeId > 0 ? $incomeId : null,
             );
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.income.saved', $uid, 'budget_income', (string) $row['id'], [
@@ -165,7 +168,8 @@ return [
         try {
             budget_tracker()->deleteIncome($uid, $incomeId);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.income.deleted', $uid, 'budget_income', (string) $incomeId, []);
@@ -196,7 +200,8 @@ return [
                 $expenseId > 0 ? $expenseId : null,
             );
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.expense.saved', $uid, 'budget_expense', (string) $row['id'], [
@@ -216,7 +221,8 @@ return [
         try {
             budget_tracker()->deleteExpense($uid, $expenseId);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.expense.deleted', $uid, 'budget_expense', (string) $expenseId, []);
@@ -245,7 +251,8 @@ return [
                 $accountId > 0 ? $accountId : null,
             );
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.account.saved', $uid, 'budget_account', (string) $row['id'], [
@@ -265,7 +272,8 @@ return [
         try {
             budget_tracker()->deleteAccount($uid, $accountId);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.account.deleted', $uid, 'budget_account', (string) $accountId, []);
@@ -295,7 +303,8 @@ return [
         try {
             $result = budget_tracker()->calculatePurchase($uid, $purchaseCents, $personIds);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('budget-tracker.purchase.calculated', $uid, 'budget_purchase', null, [

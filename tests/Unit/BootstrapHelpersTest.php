@@ -212,4 +212,19 @@ final class BootstrapHelpersTest extends TestCase
         $this->assertFalse(is_known_client_action('devtools.'));
         $this->assertFalse(is_known_client_action(''));
     }
+
+    /** Database errors never reach clients; validation errors do. */
+    public function test_public_error_hides_database_errors(): void
+    {
+        [$msg, $status] = public_error(new \PDOException("SQLSTATE[23000]: Duplicate entry 'x' for key 'users.email'"));
+        $this->assertSame(500, $status);
+        $this->assertStringNotContainsString('SQLSTATE', $msg);
+
+        [$msg, $status] = public_error(new \RuntimeException('Note is too long'));
+        $this->assertSame([400, 'Note is too long'], [$status, $msg]);
+
+        [$msg, $status] = public_error(new \TypeError('internal detail'));
+        $this->assertSame(500, $status);
+        $this->assertStringNotContainsString('internal', $msg);
+    }
 }

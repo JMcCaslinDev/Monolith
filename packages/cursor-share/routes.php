@@ -192,7 +192,8 @@ return [
         try {
             $post = cursor_share()->create($uid, $category, $title, $description, $filename, $version, $content, $tags);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('cursor-share.post.created', $uid, 'cursor_share_post', (string) $post['id'], [
@@ -224,7 +225,8 @@ return [
         try {
             $post = cursor_share()->update($uid, $postId, $title, $description, $filename, $version, $content, $tags);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('cursor-share.post.updated', $uid, 'cursor_share_post', (string) $postId, [
@@ -249,7 +251,8 @@ return [
         try {
             $result = cursor_share()->vote($uid, $postId, $direction);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('cursor-share.post.voted', $uid, 'cursor_share_post', (string) $postId, [

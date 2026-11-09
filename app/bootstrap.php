@@ -361,6 +361,23 @@ function verify_csrf(): void
     }
 }
 
+/**
+ * Maps an exception to a client-safe message. Only service validation errors (RuntimeException, not PDO)
+ * reach the client; database and unexpected errors are logged and replaced with a generic message.
+ *
+ * @return array{0: string, 1: int}
+ */
+function public_error(Throwable $e): array
+{
+    $validation = ($e instanceof RuntimeException && !($e instanceof PDOException))
+        || $e instanceof InvalidArgumentException;
+    if ($validation) {
+        return [$e->getMessage(), 400];
+    }
+    error_log(sprintf('%s: %s', $e::class, $e->getMessage()));
+    return ['Something went wrong. Please try again.', 500];
+}
+
 /** Client-reported audit actions are limited to the shapes the shipped JS emits. */
 function is_known_client_action(string $action): bool
 {

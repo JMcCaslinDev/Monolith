@@ -221,4 +221,23 @@ final class StickiesServiceTest extends TestCase
 
         $this->assertSame('ideas', $moved['section']);
     }
+
+    /** Oversized notes are rejected with a clear validation message instead of reaching the database. */
+    public function test_save_note_rejects_content_over_cap(): void
+    {
+        $userId = $this->insertMember();
+        $svc = new \Stickies\StickyService($this->db);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('too long');
+        $svc->saveNote($userId, str_repeat('a', \Stickies\StickyService::MAX_CONTENT_CHARS + 1), 'general', 'yellow', 'board');
+    }
+
+    /** Content exactly at the cap is accepted. */
+    public function test_save_note_accepts_content_at_cap(): void
+    {
+        $userId = $this->insertMember();
+        $svc = new \Stickies\StickyService($this->db);
+        $note = $svc->saveNote($userId, str_repeat('a', \Stickies\StickyService::MAX_CONTENT_CHARS), 'general', 'yellow', 'board');
+        $this->assertSame(\Stickies\StickyService::MAX_CONTENT_CHARS, mb_strlen($note['content']));
+    }
 }

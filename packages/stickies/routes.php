@@ -75,7 +75,8 @@ return [
                 $posY,
             );
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('stickies.note.saved', $uid, 'sticky', (string) $row['id'], [
@@ -98,7 +99,8 @@ return [
         try {
             stickies()->deleteNote($uid, $noteId);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('stickies.note.deleted', $uid, 'sticky', (string) $noteId, []);
@@ -119,7 +121,8 @@ return [
         try {
             $row = stickies()->moveNote($uid, $noteId, $posX, $posY, $section);
         } catch (Throwable $e) {
-            $jsonResponse(['error' => $e->getMessage()], 400);
+            [$message, $status] = public_error($e);
+            $jsonResponse(['error' => $message], $status);
         }
 
         events()->record('stickies.note.moved', $uid, 'sticky', (string) $noteId, [
