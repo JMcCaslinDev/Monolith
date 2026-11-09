@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>">
     <meta name="timezone-configured" content="<?= saved_user_timezone((int) $user['id']) ? '1' : '0' ?>">
     <?php endif; ?>
-    <script>
+    <script nonce="<?= htmlspecialchars(csp_nonce(), ENT_QUOTES) ?>">
     (function () {
         var p = localStorage.getItem('monolith-theme') || 'system';
         var dark = p === 'dark' || (p === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);

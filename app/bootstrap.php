@@ -40,6 +40,54 @@ function session_cookie_secure(array $server, string $appUrl): bool
     return isset($server['HTTPS']) && $server['HTTPS'] !== 'off';
 }
 
+function csp_nonce(): string
+{
+    static $nonce = null;
+    return $nonce ??= base64_encode(random_bytes(16));
+}
+
+/**
+ * Response headers applied to every page. Alpine's expression evaluator needs 'unsafe-eval'; the inline
+ * theme bootstrap script uses a per-request nonce. Vite's dev server origin is allowed only in local env.
+ *
+ * @return list<string>
+ */
+function security_headers(string $env, string $appUrl, string $nonce): array
+{
+    $local = $env === 'local';
+    $dev = $local ? ' http://localhost:5173' : '';
+    $csp = implode('; ', [
+        "default-src 'self'",
+        "script-src 'self' 'nonce-{$nonce}' 'unsafe-eval'{$dev}",
+        "style-src 'self' 'unsafe-inline'{$dev}",
+        "img-src 'self' data: blob:",
+        "font-src 'self' data:",
+        "connect-src 'self'" . ($local ? ' http://localhost:5173 ws://localhost:5173' : ''),
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'none'",
+    ]);
+    $headers = [
+        'Content-Security-Policy: ' . $csp,
+        'X-Content-Type-Options: nosniff',
+        'X-Frame-Options: DENY',
+        'Referrer-Policy: strict-origin-when-cross-origin',
+        'Permissions-Policy: camera=(), microphone=(), geolocation=()',
+    ];
+    if (str_starts_with(strtolower($appUrl), 'https://')) {
+        $headers[] = 'Strict-Transport-Security: max-age=31536000; includeSubDomains';
+    }
+    return $headers;
+}
+
+function send_security_headers(): void
+{
+    $app = config('app');
+    foreach (security_headers((string) $app['env'], (string) $app['url'], csp_nonce()) as $header) {
+        header($header);
+    }
+}
+
 function destroy_session(): void
 {
     $_SESSION = [];
