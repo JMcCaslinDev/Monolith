@@ -120,7 +120,7 @@ final class ShareService
     public function find(int $postId, bool $withContent = false): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.*, u.name AS author_name, u.email AS author_email
+            'SELECT p.*, u.name AS author_name
              FROM cursor_share_posts p
              JOIN users u ON u.id = p.user_id
              WHERE p.id = :id
@@ -136,7 +136,7 @@ final class ShareService
     public function findForOwner(int $userId, int $postId): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.*, u.name AS author_name, u.email AS author_email
+            'SELECT p.*, u.name AS author_name
              FROM cursor_share_posts p
              JOIN users u ON u.id = p.user_id
              WHERE p.id = :id AND p.user_id = :uid
@@ -206,7 +206,7 @@ final class ShareService
 
         $sql = 'SELECT p.id, p.user_id, p.category, p.title, p.description, p.filename, p.version,
                        p.tags, p.upvotes, p.downvotes, p.views, p.downloads, p.created_at, p.updated_at,
-                       u.name AS author_name, u.email AS author_email
+                       u.name AS author_name
                 FROM cursor_share_posts p
                 JOIN users u ON u.id = p.user_id
                 WHERE ' . implode(' AND ', $where) . '

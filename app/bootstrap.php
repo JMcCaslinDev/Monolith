@@ -7,12 +7,12 @@ use App\Projects\Registry;
 use App\Services\AuthService;
 use App\Services\EventRecorder;
 use App\Services\PermissionService;
+use App\Services\RateLimiter;
 use App\Services\TestStatusReader;
 use App\Services\UserSettingsService;
 use Dotenv\Dotenv;
 use BudgetTracker\BudgetService;
 use CursorShare\ShareService;
-use Tunnels\TunnelService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -28,8 +28,83 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start([
         'cookie_httponly' => true,
         'cookie_samesite' => 'Lax',
-        'cookie_secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'cookie_secure' => session_cookie_secure($_SERVER, (string) ($_ENV['APP_URL'] ?? '')),
     ]);
+}
+
+/** TLS is usually terminated at the load balancer, so APP_URL is the reliable signal, not $_SERVER['HTTPS']. */
+function session_cookie_secure(array $server, string $appUrl): bool
+{
+    if (str_starts_with(strtolower($appUrl), 'https://')) {
+        return true;
+    }
+    return isset($server['HTTPS']) && $server['HTTPS'] !== 'off';
+}
+
+function csp_nonce(): string
+{
+    static $nonce = null;
+    return $nonce ??= base64_encode(random_bytes(16));
+}
+
+/**
+ * Response headers applied to every page. Alpine's expression evaluator needs 'unsafe-eval'; the inline
+ * theme bootstrap script uses a per-request nonce. Vite's dev server origin is allowed only in local env.
+ *
+ * @return list<string>
+ */
+function security_headers(string $env, string $appUrl, string $nonce): array
+{
+    $local = $env === 'local';
+    $dev = $local ? ' http://localhost:5173' : '';
+    $csp = implode('; ', [
+        "default-src 'self'",
+        "script-src 'self' 'nonce-{$nonce}' 'unsafe-eval'{$dev}",
+        "style-src 'self' 'unsafe-inline'{$dev}",
+        "img-src 'self' data: blob:",
+        "font-src 'self' data:",
+        "connect-src 'self'" . ($local ? ' http://localhost:5173 ws://localhost:5173' : ''),
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'none'",
+    ]);
+    $headers = [
+        'Content-Security-Policy: ' . $csp,
+        'X-Content-Type-Options: nosniff',
+        'X-Frame-Options: DENY',
+        'Referrer-Policy: strict-origin-when-cross-origin',
+        'Permissions-Policy: camera=(), microphone=(), geolocation=()',
+    ];
+    if (str_starts_with(strtolower($appUrl), 'https://')) {
+        $headers[] = 'Strict-Transport-Security: max-age=31536000; includeSubDomains';
+    }
+    return $headers;
+}
+
+function send_security_headers(): void
+{
+    $app = config('app');
+    foreach (security_headers((string) $app['env'], (string) $app['url'], csp_nonce()) as $header) {
+        header($header);
+    }
+}
+
+function destroy_session(): void
+{
+    $_SESSION = [];
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', [
+        'expires' => time() - 3600,
+        'path' => $params['path'],
+        'domain' => $params['domain'],
+        'secure' => $params['secure'],
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_destroy();
 }
 
 function config(string $file): array
@@ -79,12 +154,6 @@ function permissions(): PermissionService
     return $p ??= new PermissionService(db());
 }
 
-function tunnels(): TunnelService
-{
-    static $t = null;
-    return $t ??= new TunnelService(db());
-}
-
 function cursor_share(): ShareService
 {
     static $s = null;
@@ -101,47 +170,6 @@ function stickies(): Stickies\StickyService
 {
     static $s = null;
     return $s ??= new Stickies\StickyService(db());
-}
-
-function tunnel_hub_url(): string
-{
-    return rtrim($_ENV['TUNNEL_HUB_URL'] ?? 'http://localhost:8787', '/');
-}
-
-function tunnel_hub_secret(): string
-{
-    return (string) ($_ENV['TUNNEL_HUB_SECRET'] ?? 'local-tunnel-dev-secret');
-}
-
-function verify_tunnel_hub_secret(): void
-{
-    $given = (string) ($_SERVER['HTTP_X_TUNNEL_HUB_SECRET'] ?? '');
-    if ($given === '' || !hash_equals(tunnel_hub_secret(), $given)) {
-        http_response_code(403);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Forbidden']);
-        exit;
-    }
-}
-
-function tunnel_client_script_url(): string
-{
-    return config('app')['url'] . '/tunnel-client.mjs';
-}
-
-function tunnel_client_download_command(): string
-{
-    return sprintf('curl -fsSL %s -o tunnel-client.mjs', tunnel_client_script_url());
-}
-
-function tunnel_client_command(string $token, int $port): string
-{
-    return sprintf(
-        'node tunnel-client.mjs --token %s --port %d --hub %s',
-        $token,
-        $port,
-        tunnel_hub_url()
-    );
 }
 
 function user_settings(): UserSettingsService
@@ -256,6 +284,17 @@ function require_admin_hub(): void
     exit;
 }
 
+function refuse_role_change(int $actorId, int $userId, string $role, string $via, string $reason): never
+{
+    events()->record('admin.role.change_denied', $actorId, 'user', (string) $userId, [
+        'role' => $role,
+        'via' => $via,
+        'reason' => $reason,
+    ]);
+    http_response_code(403);
+    exit($reason);
+}
+
 /** @param list<string> $permissions */
 /** @return list<array<string, mixed>> */
 function navbar_projects_for_user(int $userId, array $permissions): array
@@ -337,8 +376,23 @@ function record_page_view(): void
 }
 
 /** @param list<string> $middleware */
+function enforce_rate_limit(string $bucket, int $maxHits, int $windowSeconds): void
+{
+    $ip = EventRecorder::clientIp($_SERVER, filter_var($_ENV['TRUST_PROXY_HEADERS'] ?? false, FILTER_VALIDATE_BOOL)) ?? 'unknown';
+    $limiter = new RateLimiter(sys_get_temp_dir() . '/monolith-ratelimit');
+    if ($limiter->allow("{$bucket}:{$ip}", $maxHits, $windowSeconds)) {
+        return;
+    }
+    http_response_code(429);
+    header('Retry-After: ' . $windowSeconds);
+    exit('Too many requests. Try again shortly.');
+}
+
 function dispatch(callable $handler, array $middleware = [], bool $recordPageView = true): void
 {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        enforce_rate_limit('post', 120, 60);
+    }
     $mw = middleware();
     foreach ($middleware as $name) {
         if ($name === 'auth') {
@@ -369,6 +423,30 @@ function verify_csrf(): void
         http_response_code(403);
         exit('Invalid CSRF token');
     }
+}
+
+/**
+ * Maps an exception to a client-safe message. Only service validation errors (RuntimeException, not PDO)
+ * reach the client; database and unexpected errors are logged and replaced with a generic message.
+ *
+ * @return array{0: string, 1: int}
+ */
+function public_error(Throwable $e): array
+{
+    $validation = ($e instanceof RuntimeException && !($e instanceof PDOException))
+        || $e instanceof InvalidArgumentException;
+    if ($validation) {
+        return [$e->getMessage(), 400];
+    }
+    error_log(sprintf('%s: %s', $e::class, $e->getMessage()));
+    return ['Something went wrong. Please try again.', 500];
+}
+
+/** Client-reported audit actions are limited to the shapes the shipped JS emits. */
+function is_known_client_action(string $action): bool
+{
+    return $action === 'settings.theme'
+        || preg_match('/^devtools\.[a-z0-9-]{1,48}\.[a-z0-9._-]{1,64}$/', $action) === 1;
 }
 
 /** @param array<string, mixed> $event */
@@ -556,15 +634,22 @@ function event_summary(array $event): string
             $payload['role'] ?? '?',
             $event['subject_id'] ?? '?'
         ),
+        'admin.role.change_denied' => sprintf(
+            'Role change to %s for user #%s denied: %s',
+            $payload['role'] ?? '?',
+            $event['subject_id'] ?? '?',
+            $payload['reason'] ?? 'policy'
+        ),
+        'admin.status.tests_run' => ($payload['refused'] ?? false)
+            ? 'Test run refused (not local env)'
+            : 'Ran test suite (exit ' . ($payload['exit_code'] ?? '?') . ')',
+        'admin.status.checks_run' => 'Ran health checks (' . ($payload['failed'] ?? '?') . ' failed)',
         'admin.role_permission.changed' => ($payload['enabled'] ?? false ? 'Granted ' : 'Revoked ')
             . ($payload['permission'] ?? '?') . ' on ' . ($event['subject_id'] ?? 'role'),
         'admin.grant.added' => 'Grant ' . ($payload['permission'] ?? '?') . ' → user #' . ($event['subject_id'] ?? '?'),
         'admin.grant.removed' => 'Revoke ' . ($payload['permission'] ?? '?') . ' from user #' . ($event['subject_id'] ?? '?'),
         'project.opened' => 'Opened project ' . ($payload['project'] ?? $event['subject_id'] ?? '?'),
         'settings.navbar.changed' => 'Navbar pins updated',
-        'tunnels.tunnel.created' => 'Tunnel created: ' . ($payload['slug'] ?? $event['subject_id'] ?? '?'),
-        'tunnels.tunnel.stopped' => 'Tunnel stopped: ' . ($payload['slug'] ?? $event['subject_id'] ?? '?'),
-        'tunnels.tunnel.connected' => 'Tunnel client connected: ' . ($payload['slug'] ?? '?'),
         'cursor-share.post.created' => 'Cursor Share: published '
             . ($payload['title'] ?? $event['subject_id'] ?? '?')
             . ' [' . ($payload['category'] ?? '?') . ']',
@@ -577,18 +662,15 @@ function event_summary(array $event): string
             . ($payload['direction'] ?? '?') . ' on #' . ($event['subject_id'] ?? '?'),
         'budget-tracker.profile.updated' => 'Budget profile updated (' . ($payload['mode'] ?? '?') . ')',
         'budget-tracker.onboarding.completed' => 'Budget onboarding completed',
-        'budget-tracker.income.saved' => 'Income saved: ' . ($payload['label'] ?? '?')
-            . ' — $' . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2),
+        'budget-tracker.income.saved' => 'Income saved: ' . ($payload['label'] ?? '?'),
         'budget-tracker.income.deleted' => 'Income source removed #' . ($event['subject_id'] ?? '?'),
-        'budget-tracker.expense.saved' => 'Expense saved: ' . ($payload['category'] ?? '?')
-            . ' — $' . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2),
+        'budget-tracker.expense.saved' => 'Expense saved: ' . ($payload['category'] ?? '?'),
         'budget-tracker.expense.deleted' => 'Expense removed #' . ($event['subject_id'] ?? '?'),
         'budget-tracker.account.saved' => 'Account saved: ' . ($payload['name'] ?? '?')
             . ' (' . ($payload['kind'] ?? '?') . ')',
         'budget-tracker.account.deleted' => 'Account removed #' . ($event['subject_id'] ?? '?'),
-        'budget-tracker.purchase.calculated' => 'Purchase calc: $'
-            . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2)
-            . ' (' . ($payload['percent_of_annual'] ?? '?') . '% of annual income)',
+        'budget-tracker.purchase.calculated' => 'Purchase calculated ('
+            . ($payload['percent_of_annual'] ?? '?') . '% of annual income)',
         'stickies.note.saved' => ($payload['created'] ?? false ? 'Sticky created' : 'Sticky updated')
             . ' — ' . ($payload['category'] ?? '?') . ' / ' . ($payload['section'] ?? '?'),
         'stickies.note.deleted' => 'Sticky deleted #' . ($event['subject_id'] ?? '?'),

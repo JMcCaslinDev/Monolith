@@ -39,11 +39,28 @@ final class EventRecorder
             'subject_type' => $subjectType,
             'subject_id' => $subjectId,
             'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
-            'ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+            'ip' => self::clientIp($_SERVER, filter_var($_ENV['TRUST_PROXY_HEADERS'] ?? false, FILTER_VALIDATE_BOOL)),
             'user_agent' => isset($_SERVER['HTTP_USER_AGENT'])
                 ? substr($_SERVER['HTTP_USER_AGENT'], 0, 512)
                 : null,
         ]);
+    }
+
+    /**
+     * Behind a load balancer REMOTE_ADDR is the proxy. With trustProxy set, use the last X-Forwarded-For
+     * entry, which is the address the trusted proxy itself saw (earlier entries are client-controlled).
+     *
+     * @param array<string, mixed> $server
+     */
+    public static function clientIp(array $server, bool $trustProxy = false): ?string
+    {
+        $remote = isset($server['REMOTE_ADDR']) ? (string) $server['REMOTE_ADDR'] : null;
+        if (!$trustProxy || empty($server['HTTP_X_FORWARDED_FOR'])) {
+            return $remote;
+        }
+        $parts = array_map('trim', explode(',', (string) $server['HTTP_X_FORWARDED_FOR']));
+        $last = end($parts);
+        return filter_var($last, FILTER_VALIDATE_IP) !== false ? $last : $remote;
     }
 
     /** @return array<string, string> */
@@ -78,6 +95,20 @@ final class EventRecorder
         $stmt->bindValue('offset', max(0, $offset), PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
+    }
+
+    /** Deletes audit rows older than the retention window. Returns the number removed. */
+    public function prune(int $retentionDays, ?\DateTimeImmutable $now = null): int
+    {
+        if ($retentionDays < 1) {
+            throw new \InvalidArgumentException('Retention must be at least 1 day');
+        }
+        $cutoff = ($now ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
+            ->modify("-{$retentionDays} days")
+            ->format('Y-m-d H:i:s');
+        $stmt = $this->db->prepare('DELETE FROM events WHERE created_at < :cutoff');
+        $stmt->execute(['cutoff' => $cutoff]);
+        return $stmt->rowCount();
     }
 
     public function count(): int

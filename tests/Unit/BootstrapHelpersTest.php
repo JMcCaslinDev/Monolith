@@ -180,18 +180,6 @@ final class BootstrapHelpersTest extends TestCase
         $this->assertFalse(should_record_page_event('/health'));
     }
 
-    /** Tunnel client download command points at the served script URL for curl on any machine. */
-    public function test_tunnel_client_download_command_uses_app_url(): void
-    {
-        $_ENV['APP_URL'] = 'https://monolith.example.com';
-        $this->assertSame(
-            'curl -fsSL https://monolith.example.com/tunnel-client.mjs -o tunnel-client.mjs',
-            tunnel_client_download_command()
-        );
-        $this->assertStringStartsWith('node tunnel-client.mjs --token ', tunnel_client_command('abc123', 3000));
-        $this->assertStringContainsString('--hub', tunnel_client_command('abc123', 3000));
-    }
-
     /** Cursor Share publish events show title and category in the audit log. */
     public function test_event_summary_cursor_share_created(): void
     {
@@ -202,5 +190,41 @@ final class BootstrapHelpersTest extends TestCase
         ]);
         $this->assertStringContainsString('Ponytail', $summary);
         $this->assertStringContainsString('rules', $summary);
+    }
+
+    /** Admin status actions that execute scripts have readable audit summaries. */
+    public function test_event_summary_for_admin_status_runs(): void
+    {
+        $this->assertSame('Ran test suite (exit 0)', event_summary(['type' => 'admin.status.tests_run', 'payload' => ['exit_code' => 0]]));
+        $this->assertStringContainsString('refused', event_summary(['type' => 'admin.status.tests_run', 'payload' => ['refused' => true]]));
+        $this->assertSame('Ran health checks (1 failed)', event_summary(['type' => 'admin.status.checks_run', 'payload' => ['failed' => 1]]));
+    }
+
+    /** Clients can only log the action shapes the UI emits, not arbitrary audit strings. */
+    public function test_client_action_allowlist(): void
+    {
+        $this->assertTrue(is_known_client_action('settings.theme'));
+        $this->assertTrue(is_known_client_action('devtools.json-formatter.page.load'));
+        $this->assertTrue(is_known_client_action('devtools.sidebar.category.open'));
+        $this->assertFalse(is_known_client_action('admin.role.changed'));
+        $this->assertFalse(is_known_client_action('auth.login'));
+        $this->assertFalse(is_known_client_action('totally.made.up'));
+        $this->assertFalse(is_known_client_action('devtools.'));
+        $this->assertFalse(is_known_client_action(''));
+    }
+
+    /** Database errors never reach clients; validation errors do. */
+    public function test_public_error_hides_database_errors(): void
+    {
+        [$msg, $status] = public_error(new \PDOException("SQLSTATE[23000]: Duplicate entry 'x' for key 'users.email'"));
+        $this->assertSame(500, $status);
+        $this->assertStringNotContainsString('SQLSTATE', $msg);
+
+        [$msg, $status] = public_error(new \RuntimeException('Note is too long'));
+        $this->assertSame([400, 'Note is too long'], [$status, $msg]);
+
+        [$msg, $status] = public_error(new \TypeError('internal detail'));
+        $this->assertSame(500, $status);
+        $this->assertStringNotContainsString('internal', $msg);
     }
 }

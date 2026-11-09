@@ -56,18 +56,18 @@ Copy `Pulumi.prod.yaml.example` to guide additional keys. Auth0 secrets are inje
 | RDS MariaDB 11 | Application database |
 | ECS Fargate cluster + service | PHP app containers |
 | ALB + target group | HTTPS load balancing |
-| ACM certificate | TLS for your domain |
+| ACM certificate | TLS for your domain (optional `monolith:certificateArn`; when unset the ALB serves HTTP only) |
 | Route53 A/AAAA alias | `yourdomain.com` → ALB |
 | ECR repository | Docker images |
-| Secrets Manager | DB creds, Auth0 secrets |
-| Security groups | ALB → ECS → RDS only |
+| Secrets Manager | One secret holding `DB_PASSWORD`, `AUTH0_CLIENT_SECRET`, `AUTH0_COOKIE_SECRET`, injected as ECS secrets |
+| Security groups | Internet → ALB SG (80/443) → app SG (8080 from ALB SG only) → DB SG (3306 from app SG only) |
 
 Run `pulumi up` from `infra/` after the stack is configured and a Docker image is pushed (see README deploy section).
 
 ## 5. Build and push container image
 
 ```bash
-# From repo root (Dockerfile to be added when app is containerized)
+# From repo root (Dockerfile runs Apache as www-data on port 8080)
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com
 docker build -t monolith .
 docker tag monolith:latest <account>.dkr.ecr.us-east-1.amazonaws.com/monolith:latest
@@ -115,3 +115,11 @@ cd infra && pulumi up
 | DB connection refused | Security group, RDS in private subnet, correct `DB_HOST` |
 | Auth0 redirect mismatch | Callback URL exact match including https |
 | Assets 404 | Run `pnpm build`; ensure `public/build` copied into image |
+
+## 8. Known gaps (tracked in the work-parity plan)
+
+- HTTPS needs a domain and ACM certificate. Until `monolith:certificateArn` is set, the ALB listens on HTTP only (Phase 8).
+- ECS tasks still get public IPs because there is no NAT gateway. The app SG blocks direct access, so only the ALB can reach them. EB single-instance replaces this in Phase 10.
+- The network has one AZ, but ALB and the RDS subnet group need two (Phase 8).
+- Set `TRUST_PROXY_HEADERS=true` only behind the ALB. The task definition does this already.
+- Run `scripts/prune-events.php` daily to apply `EVENTS_RETENTION_DAYS` to the audit log.

@@ -176,6 +176,42 @@ final class PermissionService
         $this->assignRole($userId, $roleName);
     }
 
+    /**
+     * Applies a role change if policy allows it. Returns an error message, or null on success.
+     * Only owners may grant or remove owner, and nobody may change their own role.
+     */
+    public function changeRole(int $actorId, int $targetId, string $roleName): ?string
+    {
+        if ($actorId === $targetId) {
+            return 'You cannot change your own role.';
+        }
+        $targetIsOwner = $this->hasRole($targetId, 'owner');
+        if (($roleName === 'owner' || $targetIsOwner) && !$this->hasRole($actorId, 'owner')) {
+            return 'Only an owner can grant or remove the owner role.';
+        }
+        if ($targetIsOwner && $roleName !== 'owner' && $this->ownerCount() <= 1) {
+            return 'The last owner cannot be removed.';
+        }
+        $this->setRole($targetId, $roleName);
+        return null;
+    }
+
+    private function hasRole(int $userId, string $roleName): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT 1 FROM user_role ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? AND r.name = ?'
+        );
+        $stmt->execute([$userId, $roleName]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function ownerCount(): int
+    {
+        return (int) $this->db->query(
+            "SELECT COUNT(DISTINCT ur.user_id) FROM user_role ur JOIN roles r ON r.id = ur.role_id WHERE r.name = 'owner'"
+        )->fetchColumn();
+    }
+
     /** @return list<array<string, mixed>> */
     public function userGrants(int $userId): array
     {

@@ -22,8 +22,7 @@
       "BudgetTracker\\": "packages/budget-tracker/src/",
       "CursorShare\\": "packages/cursor-share/src/",
       "Devtools\\": "packages/devtools/src/",
-      "Stickies\\": "packages/stickies/src/",
-      "Tunnels\\": "packages/tunnels/src/"
+      "Stickies\\": "packages/stickies/src/"
     }
   },
   "autoload-dev": {

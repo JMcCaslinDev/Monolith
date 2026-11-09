@@ -5,11 +5,18 @@ declare(strict_types=1);
 use App\Projects\Registry;
 
 $routes = [
-    'GET /login' => fn () => dispatch(fn () => auth()->login(), ['guest']),
+    'GET /login' => fn () => dispatch(function (): void {
+        enforce_rate_limit('login', 20, 60);
+        auth()->login();
+    }, ['guest']),
     'GET /auth/callback' => function (): void {
+        enforce_rate_limit('login', 20, 60);
         auth()->handleCallback();
     },
-    'GET /logout' => fn () => dispatch(fn () => auth()->logout(), ['auth']),
+    'POST /logout' => fn () => dispatch(function (): void {
+        verify_csrf();
+        auth()->logout();
+    }, ['auth'], recordPageView: false),
 
     'GET /profile' => fn () => dispatch(function (): void {
         $user = auth()->currentUser();
@@ -103,9 +110,14 @@ $routes = [
     'POST /events/action' => fn () => dispatch(function (): void {
         verify_csrf();
         $action = trim((string) ($_POST['action'] ?? ''));
-        if ($action === '' || strlen($action) > 128 || !preg_match('/^[a-z0-9._-]+$/i', $action)) {
+        if (!is_known_client_action($action)) {
             http_response_code(400);
             exit('Invalid action');
+        }
+        $actor = auth()->currentUser();
+        if (str_starts_with($action, 'devtools.') && !permissions()->can((int) $actor['id'], 'projects.devtools.open')) {
+            http_response_code(403);
+            exit('Forbidden');
         }
         $meta = ['action' => $action];
         if (isset($_POST['input_bytes'])) {
@@ -120,7 +132,7 @@ $routes = [
                 $meta[$key] = $value;
             }
         }
-        $user = auth()->currentUser();
+        $user = $actor;
         events()->record('action.performed', (int) $user['id'], 'action', $action, $meta);
         header('Content-Type: application/json');
         echo json_encode(['ok' => true]);
@@ -162,11 +174,14 @@ $routes = [
     'POST /admin/status/run' => fn () => dispatch(function (): void {
         verify_csrf();
         require_admin_hub();
+        $actorId = (int) auth()->currentUser()['id'];
         if (!test_status()->canRunFromWeb()) {
+            events()->record('admin.status.tests_run', $actorId, 'admin', 'tests', ['refused' => true]);
             http_response_code(403);
             exit('Tests can only run in local environment');
         }
         $code = test_status()->run();
+        events()->record('admin.status.tests_run', $actorId, 'admin', 'tests', ['exit_code' => $code]);
         $_SESSION['status_flash'] = [
             'ok' => $code === 0,
             'message' => $code === 0 ? 'All tests passed.' : 'Tests failed — see results below.',
@@ -178,7 +193,11 @@ $routes = [
     'POST /admin/status/checks' => fn () => dispatch(function (): void {
         verify_csrf();
         require_admin_hub();
-        $_SESSION['health_checks'] = test_status()->runHealthChecks();
+        $checks = test_status()->runHealthChecks();
+        $_SESSION['health_checks'] = $checks;
+        events()->record('admin.status.checks_run', (int) auth()->currentUser()['id'], 'admin', 'checks', [
+            'failed' => count(array_filter($checks, fn (array $c) => !$c['ok'])),
+        ]);
         header('Location: /admin/status');
         exit;
     }, ['auth'], recordPageView: false),
@@ -287,7 +306,10 @@ $routes = [
             http_response_code(400);
             exit('Invalid input');
         }
-        permissions()->setRole($userId, $role);
+        $error = permissions()->changeRole((int) $actor['id'], $userId, $role);
+        if ($error !== null) {
+            refuse_role_change((int) $actor['id'], $userId, $role, 'permissions_page', $error);
+        }
         events()->record('admin.role.changed', (int) $actor['id'], 'user', (string) $userId, [
             'role' => $role,
             'via' => 'permissions_page',
@@ -339,7 +361,10 @@ $routes = [
             http_response_code(400);
             exit('Invalid input');
         }
-        permissions()->setRole($userId, $role);
+        $error = permissions()->changeRole((int) $actor['id'], $userId, $role);
+        if ($error !== null) {
+            refuse_role_change((int) $actor['id'], $userId, $role, 'users_page', $error);
+        }
         events()->record('admin.role.changed', (int) $actor['id'], 'user', (string) $userId, [
             'role' => $role,
             'via' => 'users_page',
@@ -348,7 +373,7 @@ $routes = [
         exit;
     }, ['auth', 'perm:admin.users.manage']),
 
-    'GET /health' => fn () => dispatch(function (): void {
+    'GET /health' => function (): void {
         header('Content-Type: application/json');
         $dbOk = false;
         try {
@@ -357,8 +382,11 @@ $routes = [
         } catch (Throwable) {
             // ponytail: health reports status, does not throw
         }
-        echo json_encode(['status' => 'ok', 'database' => $dbOk ? 'connected' : 'unavailable']);
-    }, recordPageView: false),
+        if (!$dbOk) {
+            http_response_code(503);
+        }
+        echo json_encode(['status' => $dbOk ? 'ok' : 'degraded', 'database' => $dbOk ? 'connected' : 'unavailable']);
+    },
 ];
 
 $root = dirname(__DIR__);

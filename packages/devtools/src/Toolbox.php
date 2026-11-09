@@ -956,7 +956,18 @@ final class Toolbox
         $html = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $html) ?? $html;
         $html = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $html) ?? $html;
         $html = preg_replace('/`(.+?)`/', '<code class="bg-slate-800 px-1 rounded">$1</code>', $html) ?? $html;
-        $html = preg_replace('/\[(.+?)\]\((.+?)\)/', '<a href="$2" class="text-indigo-400 underline">$1</a>', $html) ?? $html;
+        $html = preg_replace_callback(
+            '/\[(.+?)\]\((.+?)\)/',
+            static function (array $m): string {
+                $url = trim(html_entity_decode($m[2], ENT_QUOTES, 'UTF-8'));
+                if (preg_match('#^(https?://|mailto:|/(?!/)|\#)#i', $url) !== 1) {
+                    return $m[1];
+                }
+                return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8')
+                    . '" rel="noopener noreferrer" class="text-indigo-400 underline">' . $m[1] . '</a>';
+            },
+            $html,
+        ) ?? $html;
         $html = nl2br($html);
         return '<div class="prose prose-invert max-w-none">' . $html . '</div>';
     }

@@ -10,6 +10,8 @@ use RuntimeException;
 /** Per-user sticky notes: board layout, categories, search. */
 final class StickyService
 {
+    public const MAX_CONTENT_CHARS = 5000;
+
     public function __construct(private readonly PDO $db)
     {
     }
@@ -76,6 +78,9 @@ final class StickyService
         $section = self::normalizeLabel($section, 'board');
         $color = StickyColors::isValid($color) ? $color : 'yellow';
         $content = trim($content);
+        if (mb_strlen($content) > self::MAX_CONTENT_CHARS) {
+            throw new RuntimeException('Note is too long (max ' . self::MAX_CONTENT_CHARS . ' characters)');
+        }
 
         if ($noteId !== null && $noteId > 0) {
             $existing = $this->findRaw($userId, $noteId);

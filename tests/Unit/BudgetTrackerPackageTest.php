@@ -49,4 +49,31 @@ final class BudgetTrackerPackageTest extends TestCase
         $this->assertStringContainsString('Can I afford it?', $html);
         $this->assertStringContainsString('wizardStep', $html);
     }
+
+    /** Audit payloads and subject ids must not carry money amounts; the log is visible to admins. */
+    public function test_audit_events_carry_no_money_amounts(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 2) . '/packages/budget-tracker/routes.php');
+        preg_match_all('/events\(\)->record\((.*?)\);/s', $src, $m);
+        $this->assertNotEmpty($m[1]);
+        foreach ($m[1] as $call) {
+            $this->assertStringNotContainsString('cents', $call, 'audit call leaks an amount: ' . $call);
+            $this->assertStringNotContainsString('Cents', $call, 'audit call leaks an amount: ' . $call);
+        }
+    }
+
+    /** Budget audit summaries render without any dollar figures. */
+    public function test_event_summaries_hide_amounts(): void
+    {
+        require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
+        foreach (['income.saved', 'expense.saved', 'purchase.calculated'] as $suffix) {
+            $summary = event_summary([
+                'type' => 'budget-tracker.' . $suffix,
+                'subject_id' => '1',
+                'payload' => ['label' => 'Pay', 'category' => 'Rent', 'amount_cents' => 123456],
+            ]);
+            $this->assertStringNotContainsString('$', $summary);
+            $this->assertStringNotContainsString('1,234', $summary);
+        }
+    }
 }
