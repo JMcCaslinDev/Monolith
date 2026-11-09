@@ -7,6 +7,7 @@ use App\Projects\Registry;
 use App\Services\AuthService;
 use App\Services\EventRecorder;
 use App\Services\PermissionService;
+use App\Services\RateLimiter;
 use App\Services\TestStatusReader;
 use App\Services\UserSettingsService;
 use Dotenv\Dotenv;
@@ -375,8 +376,23 @@ function record_page_view(): void
 }
 
 /** @param list<string> $middleware */
+function enforce_rate_limit(string $bucket, int $maxHits, int $windowSeconds): void
+{
+    $ip = EventRecorder::clientIp($_SERVER, filter_var($_ENV['TRUST_PROXY_HEADERS'] ?? false, FILTER_VALIDATE_BOOL)) ?? 'unknown';
+    $limiter = new RateLimiter(sys_get_temp_dir() . '/monolith-ratelimit');
+    if ($limiter->allow("{$bucket}:{$ip}", $maxHits, $windowSeconds)) {
+        return;
+    }
+    http_response_code(429);
+    header('Retry-After: ' . $windowSeconds);
+    exit('Too many requests. Try again shortly.');
+}
+
 function dispatch(callable $handler, array $middleware = [], bool $recordPageView = true): void
 {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        enforce_rate_limit('post', 120, 60);
+    }
     $mw = middleware();
     foreach ($middleware as $name) {
         if ($name === 'auth') {

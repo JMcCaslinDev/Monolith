@@ -5,8 +5,12 @@ declare(strict_types=1);
 use App\Projects\Registry;
 
 $routes = [
-    'GET /login' => fn () => dispatch(fn () => auth()->login(), ['guest']),
+    'GET /login' => fn () => dispatch(function (): void {
+        enforce_rate_limit('login', 20, 60);
+        auth()->login();
+    }, ['guest']),
     'GET /auth/callback' => function (): void {
+        enforce_rate_limit('login', 20, 60);
         auth()->handleCallback();
     },
     'POST /logout' => fn () => dispatch(function (): void {
