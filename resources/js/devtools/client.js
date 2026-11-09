@@ -434,7 +434,12 @@ function markdownToHtml(md) {
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   html = html.replace(/`(.+?)`/g, '<code class="bg-slate-800 px-1 rounded">$1</code>');
-  html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-indigo-400 underline">$1</a>');
+  html = html.replace(/\[(.+?)\]\((.+?)\)/g, (_, label, url) => {
+    const target = url.trim().replace(/&amp;/g, '&');
+    if (!/^(https?:\/\/|mailto:|\/(?!\/)|#)/i.test(target)) return label;
+    const safe = target.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    return `<a href="${safe}" rel="noopener noreferrer" class="text-indigo-400 underline">${label}</a>`;
+  });
   return `<div class="prose prose-invert max-w-none">${html.replace(/\n/g, '<br>')}</div>`;
 }
 

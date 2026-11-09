@@ -93,6 +93,15 @@ final class DevtoolsPackageTest extends TestCase
         $this->assertSame(0, $code, implode("\n", $output));
     }
 
+    /** Client markdown preview (rendered via x-html) drops javascript: and other unsafe link targets. */
+    public function test_markdown_preview_link_safety_script_passes(): void
+    {
+        $script = dirname(__DIR__, 2) . '/scripts/check-devtools-markdown.mjs';
+        $cmd = 'node ' . escapeshellarg($script);
+        exec($cmd, $output, $code);
+        $this->assertSame(0, $code, implode("\n", $output));
+    }
+
     /** Image converter detects upload MIME, adds placeholder formats, and gates canvas export. */
     public function test_image_converter_format_script_passes(): void
     {

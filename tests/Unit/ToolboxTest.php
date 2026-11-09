@@ -371,4 +371,24 @@ final class ToolboxTest extends TestCase
         $this->assertStringContainsString('<h1', $result['output']);
         $this->assertStringContainsString('Title', $result['output']);
     }
+
+    /** Markdown links with script-capable schemes render as plain text, since the output goes through x-html. */
+    public function test_markdown_preview_drops_unsafe_link_schemes(): void
+    {
+        foreach (['javascript:alert(1)', 'JaVaScRiPt:alert(1)', ' javascript:alert(1)', 'data:text/html,<script>', 'vbscript:x', '//evil.example'] as $bad) {
+            $html = Toolbox::process('markdown-preview', 'run', ['input' => "[click]({$bad})"])['output'];
+            $this->assertStringNotContainsString('href=', $html, $bad);
+            $this->assertStringContainsString('click', $html);
+        }
+    }
+
+    /** Safe link schemes still render as anchors. */
+    public function test_markdown_preview_keeps_safe_links(): void
+    {
+        $html = Toolbox::process('markdown-preview', 'run', ['input' => '[a](https://example.com/x?y=1&z=2) [b](/local) [c](mailto:a@b.co)'])['output'];
+        $this->assertStringContainsString('href="https://example.com/x?y=1&amp;z=2"', $html);
+        $this->assertStringContainsString('href="/local"', $html);
+        $this->assertStringContainsString('href="mailto:a@b.co"', $html);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $html);
+    }
 }
