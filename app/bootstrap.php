@@ -27,8 +27,35 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start([
         'cookie_httponly' => true,
         'cookie_samesite' => 'Lax',
-        'cookie_secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'cookie_secure' => session_cookie_secure($_SERVER, (string) ($_ENV['APP_URL'] ?? '')),
     ]);
+}
+
+/** TLS is usually terminated at the load balancer, so APP_URL is the reliable signal, not $_SERVER['HTTPS']. */
+function session_cookie_secure(array $server, string $appUrl): bool
+{
+    if (str_starts_with(strtolower($appUrl), 'https://')) {
+        return true;
+    }
+    return isset($server['HTTPS']) && $server['HTTPS'] !== 'off';
+}
+
+function destroy_session(): void
+{
+    $_SESSION = [];
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', [
+        'expires' => time() - 3600,
+        'path' => $params['path'],
+        'domain' => $params['domain'],
+        'secure' => $params['secure'],
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_destroy();
 }
 
 function config(string $file): array

@@ -9,7 +9,10 @@ $routes = [
     'GET /auth/callback' => function (): void {
         auth()->handleCallback();
     },
-    'GET /logout' => fn () => dispatch(fn () => auth()->logout(), ['auth']),
+    'POST /logout' => fn () => dispatch(function (): void {
+        verify_csrf();
+        auth()->logout();
+    }, ['auth'], recordPageView: false),
 
     'GET /profile' => fn () => dispatch(function (): void {
         $user = auth()->currentUser();

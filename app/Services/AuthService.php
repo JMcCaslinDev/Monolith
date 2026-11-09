@@ -75,6 +75,7 @@ final class AuthService
         }
 
         $user = $this->upsertUser($profile);
+        session_regenerate_id(true);
         $_SESSION['user_id'] = $user['id'];
         $this->events->record('auth.login', $user['id'], 'user', (string) $user['id'], [
             'email' => $user['email'] ?? '',
@@ -90,8 +91,9 @@ final class AuthService
         if ($userId) {
             $this->events->record('auth.logout', (int) $userId, 'user', (string) $userId);
         }
-        unset($_SESSION['user_id']);
-        header('Location: ' . $this->auth0()->logout(config('app')['url']));
+        $logoutUrl = $this->auth0()->logout(config('app')['url']);
+        destroy_session();
+        header('Location: ' . $logoutUrl);
         exit;
     }
 
