@@ -47,10 +47,12 @@ First user (or `BOOTSTRAP_ADMIN_EMAIL`) gets `owner` role.
 |-------|------------|-------------|
 | `/` | — | Landing or dashboard |
 | `/login` | — | Auth0 redirect |
-| `/tools/json-converter` | `tools.json-converter.use` | Format/minify/validate JSON |
+| `/projects/devtools` | `projects.devtools.open` | Developer utilities (per-tool permissions) |
+| `/projects/stickies`, `/projects/budget-tracker`, `/projects/cursor-share` | per-project `.open` + feature permissions | Sticky notes, budget tracker, Cursor Share board |
 | `/admin/events` | `admin.events.view` | Audit log |
-| `/admin/users` | `admin.users.manage` | Assign roles |
-| `/health` | — | JSON health check |
+| `/admin/users` | `admin.users.manage` | Assign roles (only owners can grant or remove `owner`; nobody can change their own role) |
+| `POST /logout` | auth + CSRF | Sign out (POST only) |
+| `/health` | — | JSON health check, HTTP 503 when the database is unreachable |
 
 ## Scripts
 

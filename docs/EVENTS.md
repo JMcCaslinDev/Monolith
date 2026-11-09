@@ -24,10 +24,9 @@ Plus type-specific fields below. `subject_type` + `subject_id` columns duplicate
 |------|-----------------|-------------|
 | `page.viewed` | Viewed /profile | `page` |
 | `page.not_found` | 404 /bad-url | — |
-| `permission.granted` | Allowed tools.json-converter.use | `permission` |
+| `permission.granted` | Allowed devtools.formatters.json.use | `permission` |
 | `permission.denied` | Denied admin.users.manage | `permission` |
-| `tool.json_converter.used` | Opened JSON converter | `tool`, `action: open` |
-| `action.performed` | JSON: format (128 bytes) | `action`, optional `input_bytes` |
+| `action.performed` | devtools.json-formatter.format (128 bytes) | `action`, optional `input_bytes` |
 | `settings.theme.changed` | Theme → dark | `theme` |
 | `auth.login` | Signed in | `email` |
 | `admin.role.change_denied` | Role change to owner for user #2 denied: Only an owner can grant or remove the owner role. | `role`, `via`, `reason` |
@@ -35,8 +34,8 @@ Plus type-specific fields below. `subject_type` + `subject_id` columns duplicate
 | `admin.status.checks_run` | Ran health checks (0 failed) | `failed` |
 | `admin.role.changed` | Role → member for user #2 | `role`, `via` |
 | `admin.role_permission.changed` | Granted admin.events.view on admin | `permission`, `enabled` |
-| `admin.grant.added` | Grant tools.json-converter.use → user #2 | `permission` |
-| `admin.grant.removed` | Revoke tools.json-converter.use from user #2 | `permission` |
+| `admin.grant.added` | Grant devtools.formatters.json.use → user #2 | `permission` |
+| `admin.grant.removed` | Revoke devtools.formatters.json.use from user #2 | `permission` |
 | `project.opened` | Opened project tools | `project` |
 | `settings.navbar.changed` | Navbar pins updated | `projects` |
 
@@ -46,8 +45,10 @@ Event types are listed in `config/registry.php` and package manifests. Update th
 
 Browser-only clicks POST to `/events/action` (auth + CSRF):
 
-- `json.format`, `json.minify`, `json.validate`, `json.clear`
+- `devtools.<tool>.<action>` (needs `projects.devtools.open`)
 - `settings.theme` (with `theme` in meta)
+
+Any other action string is rejected with 400 (`is_known_client_action()`).
 
 Never logs raw input — only byte length when relevant.
 

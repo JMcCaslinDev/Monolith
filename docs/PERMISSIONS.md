@@ -17,7 +17,8 @@ Examples:
 
 | Permission | Meaning |
 |------------|---------|
-| `tools.json-converter.use` | Open and use the JSON tool |
+| `projects.devtools.open` | Open the Dev Tools project |
+| `devtools.formatters.json.use` | Use one Dev Tools utility |
 | `pages.dashboard.view` | See the home dashboard |
 | `admin.users.manage` | Invite, disable, assign roles |
 | `admin.events.view` | Read the audit log UI |
@@ -29,7 +30,7 @@ Examples:
 | Role | Intended for | Example permissions |
 |------|--------------|---------------------|
 | `owner` | Account creator / you | All permissions |
-| `member` | Coworker with tool access | `pages.dashboard.view`, `tools.*.use` |
+| `member` | Coworker with tool access | `pages.dashboard.view`, `devtools.*.use` |
 | `viewer` | Read-only | `pages.dashboard.view` |
 | `admin` | Platform operator | `admin.*` |
 
@@ -48,7 +49,7 @@ Defined in `database/migrations/001_initial.sql`:
 ```
 1. Resolve authenticated user (Auth0 → local users row)
 2. Load roles + grants
-3. PermissionService::can($userId, 'tools.json-converter.use')
+3. PermissionService::can($userId, 'devtools.formatters.json.use')
 4. Denied → HTTP 403 + event permission.denied
 5. Allowed → run handler + emit domain event
 ```
@@ -66,3 +67,13 @@ See **`docs/REGISTRY.md`** for the full workflow. Short version:
 ## Monetization (future)
 
 A `plan` is a named set of permission ids. On subscription change, swap the user's role or sync `grants`. Tools only call `can()` — they never know about Stripe.
+
+## Role assignment rules
+
+`PermissionService::changeRole()` enforces these for both `/admin/users/role` and `/admin/permissions/user/role`:
+
+- Only an `owner` can grant or remove the `owner` role.
+- Nobody can change their own role, so the last owner cannot demote themselves.
+- The last remaining owner cannot be demoted by anyone.
+
+Refusals return 403 and record `admin.role.change_denied`.
