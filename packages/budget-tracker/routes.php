@@ -151,7 +151,6 @@ return [
         events()->record('budget-tracker.income.saved', $uid, 'budget_income', (string) $row['id'], [
             'person_id' => $personId,
             'label' => $label,
-            'amount_cents' => $amountCents,
         ]);
 
         $jsonResponse($publicState(budget_tracker()->loadState($uid)));
@@ -203,7 +202,6 @@ return [
         events()->record('budget-tracker.expense.saved', $uid, 'budget_expense', (string) $row['id'], [
             'person_id' => $personId,
             'category' => $category,
-            'amount_cents' => $amountCents,
         ]);
 
         $jsonResponse($publicState(budget_tracker()->loadState($uid)));
@@ -253,7 +251,6 @@ return [
         events()->record('budget-tracker.account.saved', $uid, 'budget_account', (string) $row['id'], [
             'kind' => $kind,
             'name' => $name,
-            'balance_cents' => $amountCents,
         ]);
 
         $jsonResponse($publicState(budget_tracker()->loadState($uid)));
@@ -301,8 +298,7 @@ return [
             $jsonResponse(['error' => $e->getMessage()], 400);
         }
 
-        events()->record('budget-tracker.purchase.calculated', $uid, 'budget_purchase', (string) $purchaseCents, [
-            'amount_cents' => $purchaseCents,
+        events()->record('budget-tracker.purchase.calculated', $uid, 'budget_purchase', null, [
             'percent_of_annual' => $result['share']['percent_of_annual'] ?? 0,
             'person_ids' => array_column($result['included_people'], 'person_id'),
         ]);

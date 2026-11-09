@@ -581,18 +581,15 @@ function event_summary(array $event): string
             . ($payload['direction'] ?? '?') . ' on #' . ($event['subject_id'] ?? '?'),
         'budget-tracker.profile.updated' => 'Budget profile updated (' . ($payload['mode'] ?? '?') . ')',
         'budget-tracker.onboarding.completed' => 'Budget onboarding completed',
-        'budget-tracker.income.saved' => 'Income saved: ' . ($payload['label'] ?? '?')
-            . ' — $' . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2),
+        'budget-tracker.income.saved' => 'Income saved: ' . ($payload['label'] ?? '?'),
         'budget-tracker.income.deleted' => 'Income source removed #' . ($event['subject_id'] ?? '?'),
-        'budget-tracker.expense.saved' => 'Expense saved: ' . ($payload['category'] ?? '?')
-            . ' — $' . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2),
+        'budget-tracker.expense.saved' => 'Expense saved: ' . ($payload['category'] ?? '?'),
         'budget-tracker.expense.deleted' => 'Expense removed #' . ($event['subject_id'] ?? '?'),
         'budget-tracker.account.saved' => 'Account saved: ' . ($payload['name'] ?? '?')
             . ' (' . ($payload['kind'] ?? '?') . ')',
         'budget-tracker.account.deleted' => 'Account removed #' . ($event['subject_id'] ?? '?'),
-        'budget-tracker.purchase.calculated' => 'Purchase calc: $'
-            . number_format(((int) ($payload['amount_cents'] ?? 0)) / 100, 2)
-            . ' (' . ($payload['percent_of_annual'] ?? '?') . '% of annual income)',
+        'budget-tracker.purchase.calculated' => 'Purchase calculated ('
+            . ($payload['percent_of_annual'] ?? '?') . '% of annual income)',
         'stickies.note.saved' => ($payload['created'] ?? false ? 'Sticky created' : 'Sticky updated')
             . ' — ' . ($payload['category'] ?? '?') . ' / ' . ($payload['section'] ?? '?'),
         'stickies.note.deleted' => 'Sticky deleted #' . ($event['subject_id'] ?? '?'),
