@@ -208,24 +208,15 @@ function require_admin_hub(): void
     exit;
 }
 
-/** @param array<string, mixed> $actor */
-function change_user_role(array $actor, int $userId, string $role, string $via): void
+function refuse_role_change(int $actorId, int $userId, string $role, string $via, string $reason): never
 {
-    $actorId = (int) $actor['id'];
-    $error = permissions()->changeRole($actorId, $userId, $role);
-    if ($error !== null) {
-        events()->record('admin.role.change_denied', $actorId, 'user', (string) $userId, [
-            'role' => $role,
-            'via' => $via,
-            'reason' => $error,
-        ]);
-        http_response_code(403);
-        exit($error);
-    }
-    events()->record('admin.role.changed', $actorId, 'user', (string) $userId, [
+    events()->record('admin.role.change_denied', $actorId, 'user', (string) $userId, [
         'role' => $role,
         'via' => $via,
+        'reason' => $reason,
     ]);
+    http_response_code(403);
+    exit($reason);
 }
 
 /** @param list<string> $permissions */
