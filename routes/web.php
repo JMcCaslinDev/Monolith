@@ -369,7 +369,7 @@ $routes = [
         exit;
     }, ['auth', 'perm:admin.users.manage']),
 
-    'GET /health' => fn () => dispatch(function (): void {
+    'GET /health' => function (): void {
         header('Content-Type: application/json');
         $dbOk = false;
         try {
@@ -382,7 +382,7 @@ $routes = [
             http_response_code(503);
         }
         echo json_encode(['status' => $dbOk ? 'ok' : 'degraded', 'database' => $dbOk ? 'connected' : 'unavailable']);
-    }, recordPageView: false),
+    },
 ];
 
 $root = dirname(__DIR__);
